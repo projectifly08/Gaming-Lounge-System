@@ -16,18 +16,16 @@ def main():
     """
     parser = argparse.ArgumentParser(description='Gaming Lounge Management System')
     parser.add_argument('--admin', action='store_true', help='Start the Admin Panel')
-    parser.add_argument('--user', action='store_true', help='Start the Game Launcher (User Side)')
-    parser.add_argument('--pc', type=int, help='PC number for the game launcher')
+    parser.add_argument('--launcher', action='store_true', help='Start the Game Launcher')
     args = parser.parse_args()
 
     if args.admin:
         # Import and start the Admin Panel
         app = AdminApp()
         app.run()
-    elif args.user:
+    elif args.launcher:
         # Import and start the Game Launcher
-        pc_number = args.pc if args.pc else 1
-        app = LauncherApp(pc_number)
+        app = LauncherApp()
         app.run()
     else:
         parser.print_help()

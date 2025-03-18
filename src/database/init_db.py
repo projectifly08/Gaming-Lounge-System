@@ -116,6 +116,7 @@ def create_tables(cursor):
             name VARCHAR(100) NOT NULL,
             civil_id VARCHAR(20) UNIQUE NOT NULL,
             phone VARCHAR(15) NOT NULL,
+            password_hash VARCHAR(255) NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """)
