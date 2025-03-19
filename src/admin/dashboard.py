@@ -438,7 +438,11 @@ class DashboardTab(QWidget):
                 self.activity_table.setItem(i, 1, QTableWidgetItem(activity['type']))
                 
                 # Details
-                self.activity_table.setItem(i, 2, QTableWidgetItem(activity['details']))
+                details = activity['details']
+                # Convert bytearray to string if needed
+                if isinstance(details, bytearray):
+                    details = details.decode('utf-8')
+                self.activity_table.setItem(i, 2, QTableWidgetItem(details))
                 
                 # Status
                 status_item = QTableWidgetItem(activity['status'].capitalize())

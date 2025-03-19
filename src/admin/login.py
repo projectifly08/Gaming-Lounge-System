@@ -134,7 +134,7 @@ class AdminLoginWindow(QMainWindow):
         login_layout.addLayout(logo_layout)
         
         # Subtitle with gaming style
-        subtitle = QLabel("ACCESS AUTHENTICATION REQUIRED")
+        subtitle = QLabel("ADMIN AUTHENTICATION")
         subtitle.setFont(QFont("Segoe UI", 10))
         subtitle.setStyleSheet("color: #8a8aff; letter-spacing: 2px;")
         subtitle.setAlignment(Qt.AlignCenter)

@@ -197,6 +197,38 @@ class PC:
         finally:
             cursor.close()
     
+    @staticmethod
+    def get_by_user_id(user_id):
+        """Get the PC assigned to a user based on their most recent active session."""
+        cursor = db.get_cursor()
+        try:
+            # First, find the most recent active session for this user
+            query = """
+            SELECT pc_id 
+            FROM sessions 
+            WHERE user_id = %s AND status = 'active' 
+            ORDER BY start_time DESC 
+            LIMIT 1
+            """
+            cursor.execute(query, (user_id,))
+            result = cursor.fetchone()
+            
+            if not result:
+                return None  # No active session found
+            
+            pc_id = result['pc_id']
+            
+            # Now get the PC details
+            query = "SELECT * FROM pcs WHERE id = %s"
+            cursor.execute(query, (pc_id,))
+            pc_result = cursor.fetchone()
+            
+            if pc_result:
+                return PC(**pc_result)
+            return None
+        finally:
+            cursor.close()
+    
     def update_status(self, status, is_occupied=None):
         """Update the status of a PC."""
         cursor = db.get_cursor()
@@ -242,8 +274,8 @@ class Session:
             # Calculate end time based on duration
             query = """
             INSERT INTO sessions (user_id, pc_id, duration_minutes, payment_method, payment_amount, 
-                                 end_time)
-            VALUES (%s, %s, %s, %s, %s, DATE_ADD(NOW(), INTERVAL %s MINUTE))
+                                 end_time, status)
+            VALUES (%s, %s, %s, %s, %s, DATE_ADD(NOW(), INTERVAL %s MINUTE), 'active')
             """
             cursor.execute(query, (user_id, pc_id, duration_minutes, payment_method, 
                                   payment_amount, duration_minutes))
@@ -254,7 +286,14 @@ class Session:
             cursor.execute(query, (pc_id,))
             
             db.commit()
-            return session_id
+            
+            # After commit
+            query = "SELECT * FROM sessions WHERE id = %s"
+            cursor.execute(query, (session_id,))
+            session_data = cursor.fetchone()
+            if session_data:
+                return Session(**session_data)
+            return session_id  # Fallback
         except Exception as e:
             db.rollback()
             raise e

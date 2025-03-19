@@ -17,6 +17,9 @@ def check_password(stored_password, provided_password):
     """Check a stored password against a provided password."""
     return bcrypt.checkpw(provided_password.encode('utf-8'), stored_password.encode('utf-8'))
 
+# Alias for check_password for semantic compatibility
+verify_password = check_password
+
 def format_currency(amount):
     """Format a currency amount."""
     return f"${amount:.2f}"

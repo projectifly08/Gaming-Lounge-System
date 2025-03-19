@@ -1,0 +1,3 @@
+@echo off
+echo Starting Gaming Lounge Launcher...
+python -m src.main --launcher
