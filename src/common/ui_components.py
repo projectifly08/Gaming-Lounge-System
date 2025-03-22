@@ -246,36 +246,28 @@ class Card(QFrame):
 class StyledTable(QTableWidget):
     """A styled table widget with gaming theme."""
     
-    def __init__(self, parent=None):
-        super().__init__(parent)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setAlternatingRowColors(True)
         self.setStyleSheet("""
             QTableWidget {
-                border: 1px solid rgba(0, 195, 255, 0.3);
-                border-radius: 4px;
-                background-color: rgba(18, 18, 30, 0.7);
-                gridline-color: rgba(0, 195, 255, 0.2);
-                selection-background-color: rgba(0, 137, 221, 0.5);
-                selection-color: white;
-            }
-            QTableWidget::item {
-                padding: 8px;
-                border-bottom: 1px solid rgba(0, 195, 255, 0.1);
+                background-color: #1a1a2e;
+                alternate-background-color: #2a2a3e;
                 color: white;
+                border: none;
+                gridline-color: #444;
             }
             QHeaderView::section {
-                background-color: rgba(35, 35, 50, 0.9);
-                padding: 10px;
+                background-color: #333;
+                color: white;
+                padding: 4px;
                 border: none;
-                border-bottom: 1px solid rgba(0, 195, 255, 0.3);
-                font-weight: bold;
-                color: #00c3ff;
             }
         """)
         self.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.verticalHeader().setVisible(False)
         self.setSelectionBehavior(QTableWidget.SelectRows)
         self.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.setAlternatingRowColors(True)
 
 class ConfirmDialog(QDialog):
     """A confirmation dialog with gaming theme."""
