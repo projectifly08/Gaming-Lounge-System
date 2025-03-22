@@ -99,7 +99,6 @@ Before installing, make sure you have:
 1. **Database Connection Failed**
    - Ensure MySQL server is running
    - Check database credentials in `.env` file
-   - See [MySQL Setup Guide](docs/mysql_setup.md) for detailed help
 
 2. **Application Won't Start**
    - Ensure all dependencies are installed
