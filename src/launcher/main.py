@@ -1,14 +1,15 @@
 import sys
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                            QLabel, QLineEdit, QPushButton, QStackedWidget, QMessageBox, 
-                           QFrame, QGraphicsDropShadowEffect, QDialog, QGridLayout, QScrollArea, QSpinBox)
+                           QFrame, QGraphicsDropShadowEffect, QDialog, QGridLayout, QScrollArea, QSpinBox, QTableWidgetItem)
 from PyQt5.QtCore import Qt, QTimer, QSettings
 from PyQt5.QtGui import QColor, QFont, QPixmap, QPainter, QPainterPath
-from ..database import db, User, Session, PC
+from ..database import db, User, Session, PC, Order
 from src.utils.helpers import set_background_image, verify_password
 import os
 from src.common import add_close_button
 from datetime import datetime, timedelta
+from src.common.ui_components import StyledTable
 
 class RoundedImageLabel(QLabel):
     """A QLabel that displays images with rounded corners."""
@@ -493,6 +494,8 @@ class MenuItemCard(QFrame):
                 "Your order status is now 'pending'. Staff will deliver your order shortly.",
                 QMessageBox.Ok
             )
+
+            self.parent_window.load_user_orders()
             
             # Reset quantity to 1 after successful order
             self.quantity_spin.setValue(1)
@@ -512,6 +515,7 @@ class MenuItemCard(QFrame):
         finally:
             if cursor:
                 cursor.close()
+
 
 class LauncherMainWindow(QMainWindow):
     def __init__(self, pc_number=None):
@@ -902,7 +906,7 @@ class LauncherMainWindow(QMainWindow):
         return page
     
     def create_food_menu_page(self):
-        """Create the food menu page with available items."""
+        """Create the food menu page with available items and order status."""
         page = QWidget()
         layout = QVBoxLayout(page)
         layout.setContentsMargins(20, 20, 20, 20)
@@ -993,6 +997,24 @@ class LauncherMainWindow(QMainWindow):
         
         layout.addWidget(scroll_area, 1)
         
+        # Order Status Section
+        order_status_section = QWidget()
+        order_status_layout = QVBoxLayout(order_status_section)
+
+        # Header
+        order_status_header = QLabel("Your Orders")
+        order_status_header.setFont(QFont("Segoe UI", 16, QFont.Bold))
+        order_status_header.setStyleSheet("color: #00c3ff;")
+        order_status_layout.addWidget(order_status_header)
+
+        # Orders table
+        self.orders_table = StyledTable()
+        self.orders_table.setColumnCount(4)
+        self.orders_table.setHorizontalHeaderLabels(["Order #", "Items", "Status", "Action"])
+        order_status_layout.addWidget(self.orders_table)
+
+        layout.addWidget(order_status_section)
+
         return page
     
     def handle_login(self):
@@ -1415,6 +1437,8 @@ class LauncherMainWindow(QMainWindow):
     def show_food_menu(self):
         """Show the food menu page and load menu items."""
         self.load_menu_items()
+        # Load user orders
+        self.load_user_orders()
         self.stacked_widget.setCurrentWidget(self.food_menu_page)
 
     def show_main_page(self):
@@ -1504,6 +1528,58 @@ class LauncherMainWindow(QMainWindow):
             self.show_message("Error", f"Failed to load menu items: {str(e)}", QMessageBox.Critical)
             import traceback
             traceback.print_exc()
+
+    def load_user_orders(self):
+        """Load the user's orders into the table."""
+        if not self.current_user or not self.current_session:
+            self.show_message("Error", "No user or session found. Please log in again.", QMessageBox.Critical)
+            return
+
+        self.orders_table.setRowCount(0)
+        orders = Order.get_by_session(self.current_session['id'])
+
+        for i, order in enumerate(orders):
+            self.orders_table.insertRow(i)
+            self.orders_table.setItem(i, 0, QTableWidgetItem(str(order.id)))
+            items_text = ", ".join([f"{item['quantity']} x {item['name']}" for item in order.items])
+            self.orders_table.setItem(i, 1, QTableWidgetItem(items_text))
+            self.orders_table.setItem(i, 2, QTableWidgetItem(order.status.capitalize()))
+
+            # Add cancel button for pending orders
+            if order.status == 'pending':
+                cancel_button = QPushButton("Cancel Order")
+                cancel_button.clicked.connect(lambda _, order_id=order.id: self.cancel_order(order_id))
+                cancel_button.setStyleSheet("""
+                    QPushButton {
+                        background-color: #ff4c4c;
+                        color: white;
+                        border: none;
+                        border-radius: 5px;
+                        padding: 5px 10px;
+                        font-weight: bold;
+                    }
+                    QPushButton:hover {
+                        background-color: #ff6666;
+                    }
+                    QPushButton:pressed {
+                        background-color: #cc0000;
+                    }
+                """)
+                self.orders_table.setCellWidget(i, 3, cancel_button)
+
+    def cancel_order(self, order_id):
+        """Cancel a pending order."""
+        try:
+            order = Order.get_by_id(order_id)
+            if order and order.status == 'pending':
+                order.update_status('cancelled')
+                self.show_message("Success", "Order cancelled successfully.", QMessageBox.Information)
+                self.load_user_orders()  # Refresh orders
+            else:
+                self.show_message("Error", "Order cannot be cancelled.", QMessageBox.Warning)
+        except Exception as e:
+            self.show_message("Error", f"Failed to cancel order: {str(e)}", QMessageBox.Critical)
+
 
 class LauncherApp:
     def __init__(self, pc_number=None):
