@@ -167,7 +167,7 @@ def create_tables(cursor):
         CREATE TABLE IF NOT EXISTS orders (
             id INT AUTO_INCREMENT PRIMARY KEY,
             session_id INT NOT NULL,
-            status ENUM('pending', 'preparing', 'delivered', 'cancelled') DEFAULT 'pending',
+            status ENUM('pending', 'preparing', 'delivered', 'cancelled', 'ready') DEFAULT 'pending',
             order_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             delivery_time TIMESTAMP NULL,
             total_amount DECIMAL(10, 2) NOT NULL,

@@ -248,6 +248,24 @@ class PC:
             raise e
         finally:
             cursor.close()
+    
+    @staticmethod
+    def create(pc_number, specs=None):
+        """Create a new PC in the database."""
+        cursor = db.get_cursor()
+        try:
+            query = """
+            INSERT INTO pcs (pc_number, is_occupied, status, specs)
+            VALUES (%s, %s, %s, %s)
+            """
+            cursor.execute(query, (pc_number, False, 'available', specs))
+            db.commit()
+            return cursor.lastrowid
+        except Exception as e:
+            db.rollback()
+            raise e
+        finally:
+            cursor.close()
 
 
 class Session:
@@ -563,17 +581,35 @@ class Order:
     
     @staticmethod
     def get_by_id(order_id):
-        """Get an order by ID."""
+        """Get an order by ID with additional details."""
         cursor = db.get_cursor()
         try:
-            query = "SELECT * FROM orders WHERE id = %s"
+            query = """
+            SELECT o.*, s.id as session_id, u.name as user_name, p.pc_number
+            FROM orders o
+            JOIN sessions s ON o.session_id = s.id
+            JOIN users u ON s.user_id = u.id
+            JOIN pcs p ON s.pc_id = p.id
+            WHERE o.id = %s
+            """
             cursor.execute(query, (order_id,))
             result = cursor.fetchone()
             if not result:
                 return None
-            
-            order = Order(**result)
-            
+
+            order = Order(
+                id=result['id'],
+                session_id=result['session_id'],
+                status=result['status'],
+                order_time=result['order_time'],
+                delivery_time=result['delivery_time'],
+                total_amount=result['total_amount']
+            )
+
+            # Add additional info
+            order.user_name = result['user_name']
+            order.pc_number = result['pc_number']
+
             # Get order items
             query = """
             SELECT oi.*, mi.name, mi.category
@@ -581,9 +617,9 @@ class Order:
             JOIN menu_items mi ON oi.menu_item_id = mi.id
             WHERE oi.order_id = %s
             """
-            cursor.execute(query, (order_id,))
+            cursor.execute(query, (order.id,))
             order.items = cursor.fetchall()
-            
+
             return order
         finally:
             cursor.close()
@@ -628,7 +664,7 @@ class Order:
             JOIN sessions s ON o.session_id = s.id
             JOIN users u ON s.user_id = u.id
             JOIN pcs p ON s.pc_id = p.id
-            WHERE o.status = 'pending' OR o.status = 'preparing'
+            WHERE o.status = 'pending' OR o.status = 'preparing' OR o.status = 'ready'
             ORDER BY o.order_time
             """
             cursor.execute(query)
