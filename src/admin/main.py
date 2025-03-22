@@ -243,7 +243,7 @@ class AdminMainWindow(QMainWindow):
         
         # Add refresh button
         self.refresh_button = QToolButton()
-        self.refresh_button.setToolTip("Refresh All Data")
+        self.refresh_button.setToolTip("Sync All Data")
         self.refresh_button.setCursor(Qt.PointingHandCursor)
         self.refresh_button.setFixedSize(36, 36)
         self.refresh_button.setStyleSheet("""
@@ -263,32 +263,11 @@ class AdminMainWindow(QMainWindow):
             }
         """)
         
-        # Create refresh icon
-        self.refresh_pixmap = QPixmap(24, 24)
-        self.refresh_pixmap.fill(Qt.transparent)
-        
-        # Draw refresh icon on pixmap
-        painter = QPainter(self.refresh_pixmap)
-        painter.setRenderHint(QPainter.Antialiasing)
-        painter.setBrush(Qt.NoBrush)
-        
-        # Set pen for drawing
-        pen = QPen(QColor("#00c3ff"))
-        pen.setWidth(2)
-        painter.setPen(pen)
-        
-        # Draw circular arrow
-        path = QPainterPath()
-        path.moveTo(12, 5)  # Start at top center
-        path.arcTo(3, 3, 18, 18, 60, 280)  # Draw almost full circle
-        
-        # Draw arrow head
-        path.lineTo(12, 5)  # Line to top center
-        path.lineTo(14, 8)  # Arrow head
-        
-        painter.drawPath(path)
-        painter.end()
-        
+        # Load a new refresh icon image
+        new_icon_path = "src/assets/refresh-icon.png"  # Update with the actual path to the new icon
+        self.refresh_pixmap = QPixmap(new_icon_path)
+
+        # Set the new icon on the refresh button
         self.refresh_button.setIcon(QIcon(self.refresh_pixmap))
         self.refresh_button.setIconSize(QSize(24, 24))
         

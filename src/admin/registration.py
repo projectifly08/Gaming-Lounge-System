@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, 
-    QFrame, QSizePolicy, QSpacerItem, QTableWidgetItem, QMessageBox
+    QFrame, QSizePolicy, QSpacerItem, QTableWidgetItem, QMessageBox, QInputDialog, QDialog, QDialogButtonBox
 )
 from PyQt5.QtCore import Qt, QTimer, QDate
 from PyQt5.QtGui import QFont, QColor
@@ -144,8 +144,18 @@ class RegistrationTab(QWidget):
         pc_grid_layout = QVBoxLayout()
         pc_grid_layout.setContentsMargins(0, 0, 0, 0)
         
+        pc_grid_header_layout = QHBoxLayout()
         pc_grid_header = SubHeaderLabel("PC Status")
-        pc_grid_layout.addWidget(pc_grid_header)
+        pc_grid_header_layout.addWidget(pc_grid_header)
+        
+        # Add PC button
+        add_pc_button = PrimaryButton("Add PC")
+        add_pc_button.setFixedWidth(100)
+        add_pc_button.setFixedHeight(50)
+        add_pc_button.clicked.connect(self.add_pc)
+        pc_grid_header_layout.addWidget(add_pc_button)
+        
+        pc_grid_layout.addLayout(pc_grid_header_layout)
         
         self.pc_grid = QGridLayout()
         self.pc_grid.setSpacing(10)
@@ -308,44 +318,49 @@ class RegistrationTab(QWidget):
         name = self.name_input.text().strip()
         civil_id = self.civil_id_input.text().strip()
         phone = self.phone_input.text().strip()
-        
-        # Validate form
-        if not name:
-            show_message(self, "Error", "Please enter a name.", QMessageBox.Warning)
-            self.name_input.setFocus()
-            return
-        
-        if not civil_id:
-            show_message(self, "Error", "Please enter a civil ID.", QMessageBox.Warning)
-            self.civil_id_input.setFocus()
-            return
-        
-        if not phone:
-            show_message(self, "Error", "Please enter a phone number.", QMessageBox.Warning)
-            self.phone_input.setFocus()
-            return
-        
-        if self.pc_combo.count() == 0 or self.pc_combo.currentText() == "No PCs available":
-            show_message(self, "Error", "No PCs available for assignment.", QMessageBox.Warning)
-            return
-        
-        # Get selected values
-        duration = self.duration_combo.currentData()
-        payment_method = self.payment_combo.currentText()
-        pc_id = self.pc_combo.currentData()
-        
-        # Calculate price
-        price = calculate_price_for_duration(duration)
-        
+
         try:
             # Check if user already exists
-            existing_user = User.get_by_civil_id(civil_id)
+            existing_user = User.get_by_phone(phone)
             
             if existing_user:
                 user_id = existing_user.id
+                name, civil_id, phone = existing_user.name, existing_user.civil_id, existing_user.phone
             else:
+                # Validate form
+                if not name:
+                    show_message(self, "Error", "Please enter a name.", QMessageBox.Warning)
+                    self.name_input.setFocus()
+                    return
+                
+                if not civil_id:
+                    show_message(self, "Error", "Please enter a civil ID.", QMessageBox.Warning)
+                    self.civil_id_input.setFocus()
+                    return
+                
+                if not phone:
+                    show_message(self, "Error", "Please enter a phone number.", QMessageBox.Warning)
+                    self.phone_input.setFocus()
+                    return
+                
                 # Create new user
                 user_id = User.create(name, civil_id, phone)
+
+
+            if self.pc_combo.count() == 0 or self.pc_combo.currentText() == "No PCs available":
+                show_message(self, "Error", "No PCs available for assignment.", QMessageBox.Warning)
+                return
+
+            
+            # Get selected values
+            duration = self.duration_combo.currentData()
+            payment_method = self.payment_combo.currentText()
+            pc_id = self.pc_combo.currentData()
+            
+            # Calculate price
+            price = calculate_price_for_duration(duration)
+        
+        
             
             # Create session
             session_id = Session.create(user_id, pc_id, duration, payment_method, price)
@@ -377,3 +392,56 @@ class RegistrationTab(QWidget):
             if f"PC {pc_number}" == self.pc_combo.itemText(i):
                 self.pc_combo.setCurrentIndex(i)
                 break 
+    
+    def add_pc(self):
+        """Handle adding a new PC."""
+        # Create a dialog for entering PC number and specs
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Add PC")
+        layout = QVBoxLayout(dialog)
+
+        # PC Number input
+        pc_number_label = QLabel("Enter PC Number:")
+        pc_number_input = StyledLineEdit()
+        layout.addWidget(pc_number_label)
+        layout.addWidget(pc_number_input)
+
+        # PC Specs input
+        pc_specs_label = QLabel("Enter PC Specs (optional):")
+        pc_specs_input = StyledLineEdit()
+        layout.addWidget(pc_specs_label)
+        layout.addWidget(pc_specs_input)
+
+        # Buttons
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        layout.addWidget(button_box)
+
+        # Connect buttons
+        button_box.accepted.connect(dialog.accept)
+        button_box.rejected.connect(dialog.reject)
+
+        # Show dialog
+        if dialog.exec() == QDialog.Accepted:
+            pc_number = pc_number_input.text().strip()
+            pc_specs = pc_specs_input.text().strip()
+
+            if not pc_number.isdigit() or int(pc_number) <= 0:
+                show_message(self, "Error", "Invalid PC number.", QMessageBox.Warning)
+                return
+
+            pc_number = int(pc_number)
+
+            # Check if PC number already exists
+            if PC.get_by_number(pc_number):
+                show_message(self, "Error", f"PC {pc_number} already exists.", QMessageBox.Warning)
+                return
+
+            try:
+                # Create new PC with specs
+                PC.create(pc_number, specs=pc_specs)
+                show_message(self, "Success", f"PC {pc_number} added successfully.", QMessageBox.Information)
+
+                # Refresh PC grid
+                self.refresh_pc_grid()
+            except Exception as e:
+                show_message(self, "Error", f"Failed to add PC: {str(e)}", QMessageBox.Critical) 

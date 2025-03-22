@@ -1,7 +1,8 @@
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, 
     QFrame, QSizePolicy, QSpacerItem, QTableWidgetItem, QMessageBox,
-    QDialog, QComboBox, QLineEdit, QPushButton, QListWidget, QListWidgetItem
+    QDialog, QComboBox, QLineEdit, QPushButton, QListWidget, QListWidgetItem,
+    QDialogButtonBox
 )
 from PyQt5.QtCore import Qt, QTimer, QDateTime
 from PyQt5.QtGui import QFont, QColor, QIcon
@@ -56,7 +57,9 @@ class OrderDetailsDialog(QDialog):
         status_label = QLabel(self.order.status.capitalize())
         
         # Color code status
-        if self.order.status == 'delivered':
+        if self.order.status == 'ready':
+            status_label.setStyleSheet("color: #e67e22;")  # Orange
+        elif self.order.status == 'delivered':
             status_label.setStyleSheet("color: #2ecc71;")  # Green
         elif self.order.status == 'preparing':
             status_label.setStyleSheet("color: #f39c12;")  # Yellow
@@ -115,6 +118,10 @@ class OrderDetailsDialog(QDialog):
                 button_layout.addWidget(prepare_button)
             
             if self.order.status in ('pending', 'preparing'):
+                ready_button = PrimaryButton("Mark as Ready")
+                ready_button.clicked.connect(self.mark_as_ready)
+                button_layout.addWidget(ready_button)
+                
                 deliver_button = SuccessButton("Mark as Delivered")
                 deliver_button.clicked.connect(self.mark_as_delivered)
                 button_layout.addWidget(deliver_button)
@@ -122,6 +129,11 @@ class OrderDetailsDialog(QDialog):
                 cancel_button = DangerButton("Cancel Order")
                 cancel_button.clicked.connect(self.cancel_order)
                 button_layout.addWidget(cancel_button)
+
+            if self.order.status == 'ready':
+                deliver_button = SuccessButton("Mark as Delivered")
+                deliver_button.clicked.connect(self.mark_as_delivered)
+                button_layout.addWidget(deliver_button)
         
         button_layout.addWidget(close_button)
         
@@ -154,6 +166,15 @@ class OrderDetailsDialog(QDialog):
                 self.accept()
             except Exception as e:
                 show_message(self, "Error", f"Failed to cancel order: {str(e)}", QMessageBox.Critical)
+
+    def mark_as_ready(self):
+        """Mark the order as ready."""
+        try:
+            self.order.update_status('ready')
+            show_message(self, "Success", "Order marked as ready.", QMessageBox.Information)
+            self.accept()
+        except Exception as e:
+            show_message(self, "Error", f"Failed to update order: {str(e)}", QMessageBox.Critical)
 
 class OrdersTab(QWidget):
     """Orders tab for the admin panel."""
@@ -315,6 +336,8 @@ class OrdersTab(QWidget):
                 status_item.setForeground(QColor('#f39c12'))  # Yellow
             elif order.status == 'pending':
                 status_item.setForeground(QColor('#3498db'))  # Blue
+            elif order.status == 'ready':
+                status_item.setForeground(QColor('#e67e22'))  # Orange
             
             self.pending_table.setItem(i, 5, status_item)
     
