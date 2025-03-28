@@ -40,6 +40,8 @@ if %ERRORLEVEL% NEQ 0 (
     )
 )
 
+python -m update_database
+
 echo Installation complete!
 echo To start the admin panel, run: run_admin.bat
 echo To start the game launcher, run: run_launcher.bat
