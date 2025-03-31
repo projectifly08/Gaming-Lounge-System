@@ -527,6 +527,10 @@ class LauncherMainWindow(QMainWindow):
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_timer)
         
+        # Add orders refresh timer
+        self.orders_refresh_timer = QTimer()
+        self.orders_refresh_timer.timeout.connect(self.load_user_orders)
+        
         # Exit password tracking
         self.exit_password_attempts = 0
         self.exit_password_locked_until = None
@@ -1001,11 +1005,42 @@ class LauncherMainWindow(QMainWindow):
         order_status_section = QWidget()
         order_status_layout = QVBoxLayout(order_status_section)
 
-        # Header
+        # Header with refresh button
+        header_layout = QHBoxLayout()
+        
+        # Title
         order_status_header = QLabel("Your Orders")
         order_status_header.setFont(QFont("Segoe UI", 16, QFont.Bold))
         order_status_header.setStyleSheet("color: #00c3ff;")
-        order_status_layout.addWidget(order_status_header)
+        header_layout.addWidget(order_status_header)
+        
+        # Add stretch to push refresh button to the right
+        header_layout.addStretch()
+        
+        # Refresh button with icon
+        refresh_button = QPushButton("🔄")
+        refresh_button.setCursor(Qt.PointingHandCursor)
+        refresh_button.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(0, 195, 255, 0.2);
+                color: #00c3ff;
+                border: 1px solid rgba(0, 195, 255, 0.5);
+                border-radius: 5px;
+                padding: 5px 15px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: rgba(0, 195, 255, 0.3);
+                border: 1px solid rgba(0, 195, 255, 0.8);
+            }
+            QPushButton:pressed {
+                background-color: rgba(0, 195, 255, 0.4);
+            }
+        """)
+        refresh_button.clicked.connect(self.load_user_orders)
+        header_layout.addWidget(refresh_button)
+        
+        order_status_layout.addLayout(header_layout)
 
         # Orders table
         self.orders_table = StyledTable()
@@ -1168,6 +1203,10 @@ class LauncherMainWindow(QMainWindow):
     def end_session(self):
         """End the current session and log out the user when time expires."""
         try:
+            # Stop the orders refresh timer
+            if self.orders_refresh_timer.isActive():
+                self.orders_refresh_timer.stop()
+            
             # Update session status in database
             if self.current_session:
                 # Check if session has an ID field or is a dictionary
@@ -1439,51 +1478,59 @@ class LauncherMainWindow(QMainWindow):
         self.load_menu_items()
         # Load user orders
         self.load_user_orders()
+        # Start orders refresh timer (refresh every 1 seconds)
+        self.orders_refresh_timer.start(1000)
         self.stacked_widget.setCurrentWidget(self.food_menu_page)
 
     def show_main_page(self):
         """Return to the main games page."""
+        # Stop orders refresh timer when leaving food menu
+        # self.orders_refresh_timer.stop()
         self.stacked_widget.setCurrentWidget(self.main_page)
 
     def load_menu_items(self):
         """Load menu items from the database and display them."""
         try:
+            # Clear existing items
+            for i in reversed(range(self.menu_layout.count())): 
+                self.menu_layout.itemAt(i).widget().setParent(None)
+            
+            # Get menu items from database
             cursor = db.get_cursor()
             
-            # Adapt query based on available columns
-            try:
-                cursor.execute("DESCRIBE menu_items")
-                columns = [column['Field'] for column in cursor.fetchall()]
-                
-                # Check if there's an 'available' or 'is_active' field
-                if 'available' in columns:
-                    availability_field = 'available = TRUE'
-                elif 'is_active' in columns:
-                    availability_field = 'is_active = TRUE'
-                elif 'is_available' in columns:
-                    availability_field = 'is_available = TRUE'
-                else:
-                    availability_field = '1=1'  # Always true if no availability column
-                    
-                # Build and execute the query
-                query = f"""
-                    SELECT * FROM menu_items 
-                    WHERE {availability_field}
-                    ORDER BY category, name
-                """
-            except:
-                # Fallback if table structure query fails
-                query = "SELECT * FROM menu_items ORDER BY category, name"
-                
+            # Check table structure for availability and image fields
+            cursor.execute("DESCRIBE menu_items")
+            columns = [column['Field'] for column in cursor.fetchall()]
+            
+            # Determine availability field
+            availability_field = None
+            if 'available' in columns:
+                availability_field = 'available = TRUE'
+            elif 'is_active' in columns:
+                availability_field = 'is_active = TRUE'
+            elif 'is_available' in columns:
+                availability_field = 'is_available = TRUE'
+            
+            # Determine image field
+            image_field = None
+            if 'image_path' in columns:
+                image_field = 'image_path'
+            elif 'image' in columns:
+                image_field = 'image'
+            
+            # Build query based on available fields
+            query = "SELECT id, name, price, description, category"
+            if image_field:
+                query += f", {image_field}"
+            
+            query += " FROM menu_items"
+            if availability_field:
+                query += f" WHERE {availability_field}"
+            query += " ORDER BY category, name"
+            
             cursor.execute(query)
             menu_items = cursor.fetchall()
             cursor.close()
-            
-            # Clear existing menu items
-            for i in reversed(range(self.menu_layout.count())):
-                widget = self.menu_layout.itemAt(i).widget()
-                if widget:
-                    widget.setParent(None)
             
             if menu_items:
                 # Group items by category
@@ -1493,7 +1540,7 @@ class LauncherMainWindow(QMainWindow):
                     if category not in categories:
                         categories[category] = []
                     categories[category].append(item)
-                    
+                
                 # Add category headers and items
                 row = 0
                 cols = 3  # Number of columns in the grid
@@ -1509,8 +1556,144 @@ class LauncherMainWindow(QMainWindow):
                     # Add items in this category
                     col = 0
                     for item in items:
-                        menu_card = MenuItemCard(item, self)
-                        self.menu_layout.addWidget(menu_card, row, col)
+                        # Create item card
+                        card = QFrame()
+                        card.setFixedSize(300, 400)  # Fixed size for consistency
+                        card.setStyleSheet("""
+                            QFrame {
+                                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+                                    stop:0 rgba(30, 30, 50, 0.9),
+                                    stop:1 rgba(20, 20, 35, 0.95));
+                                border: 2px solid rgba(255, 152, 0, 0.3);
+                                border-radius: 15px;
+                                padding: 15px;
+                            }
+                            QFrame:hover {
+                                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+                                    stop:0 rgba(40, 40, 60, 0.95),
+                                    stop:1 rgba(30, 30, 45, 0.98));
+                                border: 2px solid rgba(255, 152, 0, 0.8);
+                                transform: translateY(-5px);
+                            }
+                        """)
+                        
+                        # Add shadow effect to the card
+                        shadow = QGraphicsDropShadowEffect()
+                        shadow.setBlurRadius(20)
+                        shadow.setColor(QColor(255, 152, 0, 100))
+                        shadow.setOffset(0, 5)
+                        card.setGraphicsEffect(shadow)
+                        
+                        # Create layout for the card
+                        card_layout = QVBoxLayout(card)
+                        card_layout.setContentsMargins(15, 15, 15, 15)
+                        card_layout.setSpacing(15)
+                        
+                        # Image container with rounded corners
+                        if image_field and item.get(image_field):
+                            image_container = QFrame()
+                            image_container.setFixedHeight(200)
+                            image_container.setStyleSheet("""
+                                QFrame {
+                                    background-color: rgba(40, 40, 60, 0.5);
+                                    border-radius: 10px;
+                                    border: 1px solid rgba(255, 152, 0, 0.3);
+                                }
+                            """)
+                            image_layout = QVBoxLayout(image_container)
+                            image_layout.setContentsMargins(5, 5, 5, 5)
+                            
+                            image_label = QLabel()
+                            pixmap = QPixmap(item[image_field])
+                            if not pixmap.isNull():
+                                scaled_pixmap = pixmap.scaled(250, 180, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                                image_label.setPixmap(scaled_pixmap)
+                                image_label.setAlignment(Qt.AlignCenter)
+                                image_layout.addWidget(image_label)
+                            
+                            card_layout.addWidget(image_container)
+                        
+                        # Item name with modern styling
+                        name_label = QLabel(item['name'])
+                        name_label.setFont(QFont("Segoe UI", 16, QFont.Bold))
+                        name_label.setStyleSheet("""
+                            color: #ff9800;
+                            letter-spacing: 1px;
+                            text-shadow: 0 0 10px rgba(255, 152, 0, 0.3);
+                        """)
+                        name_label.setAlignment(Qt.AlignCenter)
+                        card_layout.addWidget(name_label)
+                        
+                        # Item description with modern styling
+                        if item.get('description'):
+                            desc_label = QLabel(item['description'])
+                            desc_label.setWordWrap(True)
+                            desc_label.setFont(QFont("Segoe UI", 11))
+                            desc_label.setStyleSheet("""
+                                color: #cccccc;
+                                background-color: rgba(40, 40, 60, 0.3);
+                                border-radius: 5px;
+                                padding: 8px;
+                            """)
+                            desc_label.setAlignment(Qt.AlignCenter)
+                            card_layout.addWidget(desc_label)
+                        
+                        # Price and order button container with modern styling
+                        price_container = QWidget()
+                        price_container.setStyleSheet("""
+                            QWidget {
+                                background-color: rgba(40, 40, 60, 0.5);
+                                border-radius: 10px;
+                                padding: 10px;
+                            }
+                        """)
+                        price_layout = QHBoxLayout(price_container)
+                        price_layout.setContentsMargins(10, 10, 10, 10)
+                        price_layout.setSpacing(15)
+                        
+                        # Price with modern styling
+                        price_label = QLabel(f"₹{float(item['price']):.2f}")
+                        price_label.setFont(QFont("Segoe UI", 18, QFont.Bold))
+                        price_label.setStyleSheet("""
+                            color: #00c853;
+                            text-shadow: 0 0 10px rgba(0, 200, 83, 0.3);
+                        """)
+                        price_layout.addWidget(price_label)
+                        
+                        # Order button with modern styling
+                        order_button = QPushButton("ORDER NOW")
+                        order_button.setCursor(Qt.PointingHandCursor)
+                        order_button.setFixedWidth(120)
+                        order_button.setStyleSheet("""
+                            QPushButton {
+                                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+                                    stop:0 #ff9800, stop:1 #ff5722);
+                                color: white;
+                                border: none;
+                                border-radius: 8px;
+                                padding: 10px 15px;
+                                font-weight: bold;
+                                font-size: 12px;
+                                letter-spacing: 1px;
+                            }
+                            QPushButton:hover {
+                                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+                                    stop:0 #ffa726, stop:1 #ff7043);
+                                transform: scale(1.05);
+                            }
+                            QPushButton:pressed {
+                                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+                                    stop:0 #f57c00, stop:1 #f4511e);
+                                transform: scale(0.95);
+                            }
+                        """)
+                        order_button.clicked.connect(lambda checked, item_id=item['id'], name=item['name'], price=item['price']: 
+                            self.show_order_dialog(item_id, name, price))
+                        price_layout.addWidget(order_button)
+                        
+                        card_layout.addWidget(price_container)
+                        self.menu_layout.addWidget(card, row, col)
+                        
                         col += 1
                         if col >= cols:
                             col = 0
@@ -1524,6 +1707,7 @@ class LauncherMainWindow(QMainWindow):
                 no_items_label.setAlignment(Qt.AlignCenter)
                 no_items_label.setStyleSheet("color: white; font-size: 16px;")
                 self.menu_layout.addWidget(no_items_label, 0, 0)
+                
         except Exception as e:
             self.show_message("Error", f"Failed to load menu items: {str(e)}", QMessageBox.Critical)
             import traceback
@@ -1579,6 +1763,167 @@ class LauncherMainWindow(QMainWindow):
                 self.show_message("Error", "Order cannot be cancelled.", QMessageBox.Warning)
         except Exception as e:
             self.show_message("Error", f"Failed to cancel order: {str(e)}", QMessageBox.Critical)
+
+    def show_order_dialog(self, item_id, name, price):
+        """Show dialog to confirm order with quantity selection."""
+        try:
+            # Check for active user session
+            if not self.current_user or not self.current_session:
+                self.show_message("Error", "No active user session found.", QMessageBox.Warning)
+                return
+            
+            dialog = QDialog(self)
+            dialog.setWindowTitle("Place Order")
+            dialog.setFixedWidth(400)
+            dialog.setStyleSheet("""
+                QDialog {
+                    background-color: #1a1a2e;
+                    color: white;
+                    border: 1px solid rgba(255, 152, 0, 0.5);
+                    border-radius: 10px;
+                }
+                QLabel {
+                    color: white;
+                    font-size: 14px;
+                }
+                QSpinBox {
+                    background-color: rgba(40, 40, 60, 0.7);
+                    border: 1px solid rgba(255, 152, 0, 0.5);
+                    border-radius: 5px;
+                    padding: 5px;
+                    color: white;
+                }
+                QSpinBox::up-button, QSpinBox::down-button {
+                    background-color: rgba(255, 152, 0, 0.5);
+                    border-radius: 3px;
+                }
+                QPushButton {
+                    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #ff9800, stop:1 #ff5722);
+                    color: white;
+                    border: none;
+                    border-radius: 5px;
+                    padding: 8px 15px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #ffa726, stop:1 #ff7043);
+                }
+                QPushButton:pressed {
+                    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #f57c00, stop:1 #f4511e);
+                }
+            """)
+            
+            layout = QVBoxLayout(dialog)
+            layout.setSpacing(15)
+            
+            # Item name
+            name_label = QLabel(name)
+            name_label.setFont(QFont("Segoe UI", 16, QFont.Bold))
+            name_label.setStyleSheet("color: #ff9800;")
+            layout.addWidget(name_label)
+            
+            # Price
+            price_label = QLabel(f"Price: ₹{float(price):.2f}")
+            price_label.setFont(QFont("Segoe UI", 14))
+            layout.addWidget(price_label)
+            
+            # Quantity selection
+            quantity_layout = QHBoxLayout()
+            quantity_label = QLabel("Quantity:")
+            quantity_label.setFont(QFont("Segoe UI", 12))
+            quantity_layout.addWidget(quantity_label)
+            
+            quantity_spin = QSpinBox()
+            quantity_spin.setMinimum(1)
+            quantity_spin.setMaximum(10)
+            quantity_spin.setValue(1)
+            quantity_spin.setFixedWidth(100)
+            quantity_layout.addWidget(quantity_spin)
+            
+            layout.addLayout(quantity_layout)
+            
+            # Total amount
+            total_label = QLabel(f"Total: ₹{float(price):.2f}")
+            total_label.setFont(QFont("Segoe UI", 14, QFont.Bold))
+            total_label.setStyleSheet("color: #00c853;")
+            layout.addWidget(total_label)
+            
+            # Update total when quantity changes
+            def update_total():
+                total = float(price) * quantity_spin.value()
+                total_label.setText(f"Total: ₹{total:.2f}")
+            
+            quantity_spin.valueChanged.connect(update_total)
+            
+            # Buttons
+            button_layout = QHBoxLayout()
+            
+            cancel_button = QPushButton("Cancel")
+            cancel_button.clicked.connect(dialog.reject)
+            button_layout.addWidget(cancel_button)
+            
+            confirm_button = QPushButton("Confirm Order")
+            confirm_button.clicked.connect(dialog.accept)
+            button_layout.addWidget(confirm_button)
+            
+            layout.addLayout(button_layout)
+            
+            if dialog.exec_() == QDialog.Accepted:
+                quantity = quantity_spin.value()
+                total_amount = float(price) * quantity
+                
+                # Create order in database
+                cursor = db.get_cursor()
+                try:
+                    # Create the order
+                    cursor.execute("""
+                        INSERT INTO orders (session_id, status, total_amount)
+                        VALUES (%s, %s, %s)
+                    """, (
+                        self.current_session['id'],
+                        'pending',
+                        total_amount
+                    ))
+                    
+                    order_id = cursor.lastrowid
+                    
+                    # Add order item
+                    cursor.execute("""
+                        INSERT INTO order_items (order_id, menu_item_id, quantity, price)
+                        VALUES (%s, %s, %s, %s)
+                    """, (
+                        order_id,
+                        item_id,
+                        quantity,
+                        price
+                    ))
+                    
+                    db.commit()
+                    
+                    # Show success message
+                    self.show_message(
+                        "Order Placed",
+                        f"Your order for {quantity} x {name} has been placed!\n\n"
+                        f"Total: ₹{total_amount:.2f}\n"
+                        "Your order status is now 'pending'. Staff will deliver your order shortly.",
+                        QMessageBox.Information
+                    )
+                    
+                    # Refresh orders table
+                    self.load_user_orders()
+                    
+                except Exception as e:
+                    db.rollback()
+                    self.show_message("Error", f"Failed to place order: {str(e)}", QMessageBox.Critical)
+                    import traceback
+                    traceback.print_exc()
+                finally:
+                    cursor.close()
+                    
+        except Exception as e:
+            self.show_message("Error", f"Failed to show order dialog: {str(e)}", QMessageBox.Critical)
+            import traceback
+            traceback.print_exc()
 
 
 class LauncherApp:
