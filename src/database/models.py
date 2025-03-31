@@ -632,13 +632,6 @@ class Order:
             query = "SELECT * FROM orders WHERE session_id = %s ORDER BY order_time DESC"
             cursor.execute(query, (session_id,))
             results = cursor.fetchall()
-
-            print(results[0])
-            print(results[0]['id'])
-            print(results[0]['status'])
-            print(results[0]['order_time'])
-            print(results[0]['delivery_time'])
-            print(results[0]['total_amount'])
             
             orders = []
             for result in results:
