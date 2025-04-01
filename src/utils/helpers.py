@@ -90,7 +90,7 @@ def get_duration_options():
 
 def get_payment_methods():
     """Get available payment methods."""
-    return ["Apple Pay", "KNET"]
+    return ["Cash", "Apple Pay", "KNET"]
 
 def calculate_price_for_duration(minutes):
     """Calculate price for a given duration."""

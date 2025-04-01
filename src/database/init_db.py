@@ -142,7 +142,7 @@ def create_tables(cursor):
             end_time TIMESTAMP NULL,
             duration_minutes INT NOT NULL,
             status ENUM('active', 'paused', 'completed', 'terminated') DEFAULT 'active',
-            payment_method ENUM('Apple Pay', 'KNET') NOT NULL,
+            payment_method ENUM('Cash', 'Apple Pay', 'KNET') NOT NULL,
             payment_amount DECIMAL(10, 2) NOT NULL,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
             FOREIGN KEY (pc_id) REFERENCES pcs(id) ON DELETE CASCADE
