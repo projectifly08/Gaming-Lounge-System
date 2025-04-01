@@ -244,19 +244,27 @@ class DashboardTab(QWidget):
         """Refresh active sessions data."""
         cursor = db.get_cursor()
         try:
-            # Get active sessions count
-            query = "SELECT COUNT(*) as count FROM sessions WHERE status = 'active'"
+            # Get active sessions count (excluding walk-in customers)
+            query = """
+            SELECT COUNT(*) as count 
+            FROM sessions s
+            JOIN users u ON s.user_id = u.id
+            WHERE s.status = 'active'
+            AND u.civil_id != 'WALK-IN'
+            """
             cursor.execute(query)
             result = cursor.fetchone()
             
             if result:
                 self.active_sessions_label.setText(f"Active Sessions: {result['count'] or 0}")
             
-            # Get total play time
+            # Get total play time (excluding walk-in customers)
             query = """
-            SELECT SUM(duration_minutes) as total_minutes 
-            FROM sessions 
-            WHERE status = 'active'
+            SELECT SUM(s.duration_minutes) as total_minutes 
+            FROM sessions s
+            JOIN users u ON s.user_id = u.id
+            WHERE s.status = 'active'
+            AND u.civil_id != 'WALK-IN'
             """
             cursor.execute(query)
             result = cursor.fetchone()
@@ -383,7 +391,7 @@ class DashboardTab(QWidget):
             # Clear existing rows
             self.activity_table.setRowCount(0)
             
-            # Get recent sessions
+            # Get recent sessions (excluding walk-in customers)
             query = """
             SELECT 
                 s.id, 
@@ -394,13 +402,14 @@ class DashboardTab(QWidget):
             FROM sessions s
             JOIN users u ON s.user_id = u.id
             JOIN pcs p ON s.pc_id = p.id
+            WHERE u.civil_id != 'WALK-IN'
             ORDER BY s.start_time DESC
             LIMIT 5
             """
             cursor.execute(query)
             sessions = cursor.fetchall()
             
-            # Get recent orders
+            # Get recent orders (excluding walk-in customers)
             query = """
             SELECT 
                 o.id, 
@@ -410,8 +419,10 @@ class DashboardTab(QWidget):
                 o.status
             FROM orders o
             JOIN sessions s ON o.session_id = s.id
+            JOIN users u ON s.user_id = u.id
             JOIN pcs p ON s.pc_id = p.id
             JOIN order_items oi ON o.id = oi.order_id
+            WHERE u.civil_id != 'WALK-IN'
             GROUP BY o.id
             ORDER BY o.order_time DESC
             LIMIT 5
@@ -424,7 +435,7 @@ class DashboardTab(QWidget):
                 sessions + orders,
                 key=lambda x: x['start_time'] if 'start_time' in x else x['order_time'],
                 reverse=True
-            )[:10]  # Get top 10
+            )[:10]
             
             # Add to table
             for i, activity in enumerate(activities):

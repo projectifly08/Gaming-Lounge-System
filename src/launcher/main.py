@@ -597,18 +597,20 @@ class LauncherMainWindow(QMainWindow):
         main_layout.addWidget(self.stacked_widget)
         
         # Create and add pages
+        self.pre_login_page = self.create_pre_login_page()
         self.login_page = self.create_login_page()
         self.main_page = self.create_main_page()
         self.food_menu_page = self.create_food_menu_page()
         self.apps_page = self.create_apps_page()
         
+        self.stacked_widget.addWidget(self.pre_login_page)
         self.stacked_widget.addWidget(self.login_page)
         self.stacked_widget.addWidget(self.main_page)
         self.stacked_widget.addWidget(self.food_menu_page)
         self.stacked_widget.addWidget(self.apps_page)
         
-        # Show login page initially
-        self.stacked_widget.setCurrentWidget(self.login_page)
+        # Show pre-login page initially
+        self.stacked_widget.setCurrentWidget(self.pre_login_page)
         
         # Make window fullscreen
         self.showFullScreen()
@@ -616,6 +618,335 @@ class LauncherMainWindow(QMainWindow):
         # Add close button
         self.close_button = add_close_button(self)
     
+    def create_pre_login_page(self):
+        """Create the pre-login page with options for PC users and non-PC users."""
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setAlignment(Qt.AlignCenter)
+        
+        # Create container with gaming theme
+        container = QFrame()
+        container.setObjectName("preLoginContainer")
+        container.setMinimumWidth(800)
+        container.setMinimumHeight(700)
+        container.setStyleSheet("""
+            #preLoginContainer {
+                background-color: rgba(18, 18, 30, 0.85);
+                border: 1px solid rgba(0, 195, 255, 0.5);
+                border-radius: 15px;
+                padding: 20px;
+            }
+        """)
+        
+        # Add shadow effect to the container
+        shadow = QGraphicsDropShadowEffect()
+        shadow.setBlurRadius(20)
+        shadow.setColor(QColor(0, 195, 255, 160))
+        shadow.setOffset(0, 0)
+        container.setGraphicsEffect(shadow)
+        
+        container_layout = QVBoxLayout(container)
+        container_layout.setContentsMargins(30, 30, 30, 30)
+        container_layout.setSpacing(20)
+        
+        # Logo/Header with gaming style
+        logo_layout = QVBoxLayout()
+        logo_layout.setAlignment(Qt.AlignCenter)
+        logo_layout.setSpacing(0)
+        
+        # Add logo image
+        logo_label = RoundedImageLabel()
+        logo_label.setFixedSize(150, 150)
+        logo_pixmap = QPixmap("src/assets/logo.jpg")
+        logo_label.setPixmap(logo_pixmap)
+        logo_label.setAlignment(Qt.AlignCenter)
+        logo_label.setStyleSheet("""
+            background-color: transparent;
+            margin: 0 auto;
+        """)
+        
+        # Center the logo in its container
+        logo_container = QWidget()
+        logo_container_layout = QHBoxLayout(logo_container)
+        logo_container_layout.setAlignment(Qt.AlignCenter)
+        logo_container_layout.addWidget(logo_label)
+        logo_container_layout.setContentsMargins(0, 0, 0, 0)
+        logo_layout.addWidget(logo_container)
+        
+        # Add title
+        header_label = QLabel("WELCOME TO\nTHE GAMING LOUNGE")
+        header_label.setFont(QFont("Segoe UI", 38, QFont.Bold))
+        header_label.setStyleSheet("""
+            color: #00c3ff;
+            letter-spacing: 3px;
+            font-size: 48px !important;
+            font-weight: bold;
+            line-height: 1.2;
+            padding: 10px;
+        """)
+        header_label.setWordWrap(True)
+        header_label.setMinimumHeight(80)
+        header_label.setAlignment(Qt.AlignCenter)
+        
+        # Add glow effect to the header
+        header_glow = QGraphicsDropShadowEffect()
+        header_glow.setBlurRadius(20)
+        header_glow.setColor(QColor(0, 195, 255, 200))
+        header_glow.setOffset(0, 0)
+        header_label.setGraphicsEffect(header_glow)
+        
+        logo_layout.addWidget(header_label)
+        container_layout.addLayout(logo_layout)
+        
+        # Subtitle
+        subtitle = QLabel("SELECT YOUR OPTION")
+        subtitle.setFont(QFont("Segoe UI", 10))
+        subtitle.setStyleSheet("color: #8a8aff; letter-spacing: 2px;")
+        subtitle.setAlignment(Qt.AlignCenter)
+        container_layout.addWidget(subtitle)
+        
+        # Add decorative line
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setFrameShadow(QFrame.Sunken)
+        line.setStyleSheet("background-color: rgba(0, 195, 255, 0.5); border: none; height: 1px;")
+        container_layout.addWidget(line)
+        
+        container_layout.addSpacing(20)
+        
+        # PC User Login Button
+        pc_login_button = QPushButton("PC USER LOGIN")
+        pc_login_button.setMinimumHeight(60)
+        pc_login_button.setCursor(Qt.PointingHandCursor)
+        pc_login_button.setFont(QFont("Segoe UI", 14, QFont.Bold))
+        pc_login_button.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #0078d7, stop:1 #00c3ff);
+                color: white;
+                border: none;
+                border-radius: 5px;
+                letter-spacing: 1px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #0086ef, stop:1 #19ceff);
+            }
+            QPushButton:pressed {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #006acf, stop:1 #00b2e8);
+            }
+        """)
+        pc_login_button.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(self.login_page))
+        container_layout.addWidget(pc_login_button)
+        
+        # Non-PC User Order Button
+        non_pc_order_button = QPushButton("ORDER FOOD && DRINKS")
+        non_pc_order_button.setMinimumHeight(60)
+        non_pc_order_button.setCursor(Qt.PointingHandCursor)
+        non_pc_order_button.setFont(QFont("Segoe UI", 14, QFont.Bold))
+        non_pc_order_button.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #ff5722, stop:1 #ff9800);
+                color: white;
+                border: none;
+                border-radius: 5px;
+                letter-spacing: 1px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #ff7043, stop:1 #ffb74d);
+            }
+            QPushButton:pressed {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #e64a19, stop:1 #f57c00);
+            }
+        """)
+        non_pc_order_button.clicked.connect(self.show_non_pc_order_page)
+        container_layout.addWidget(non_pc_order_button)
+        
+        # Exit button
+        exit_button = QPushButton("EXIT")
+        exit_button.setMinimumHeight(40)
+        exit_button.setCursor(Qt.PointingHandCursor)
+        exit_button.setFont(QFont("Segoe UI", 10))
+        exit_button.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(40, 40, 60, 0.7);
+                color: #8a8aff;
+                border: 1px solid rgba(138, 138, 255, 0.3);
+                border-radius: 5px;
+                letter-spacing: 1px;
+            }
+            QPushButton:hover {
+                background-color: rgba(50, 50, 70, 0.9);
+                border: 1px solid rgba(138, 138, 255, 0.5);
+            }
+            QPushButton:pressed {
+                background-color: rgba(30, 30, 50, 0.9);
+            }
+        """)
+        exit_button.clicked.connect(self.attempt_close)
+        container_layout.addWidget(exit_button)
+        
+        # Add container to main layout
+        layout.addStretch()
+        layout.addWidget(container)
+        layout.addStretch()
+        
+        return page
+
+    def show_non_pc_order_page(self):
+        """Show the non-PC user order page."""
+        # Create order page
+        order_page = QWidget()
+        order_layout = QVBoxLayout(order_page)
+        order_layout.setContentsMargins(20, 20, 20, 20)
+        order_layout.setSpacing(20)
+        
+        # Header with title and back button
+        header = QHBoxLayout()
+        
+        # Back button
+        back_button = QPushButton("◀ BACK")
+        back_button.setCursor(Qt.PointingHandCursor)
+        back_button.setFixedWidth(200)
+        back_button.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(30, 30, 50, 0.7);
+                color: white;
+                border: 1px solid rgba(0, 195, 255, 0.5);
+                border-radius: 5px;
+                padding: 8px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: rgba(40, 40, 60, 0.8);
+                border: 1px solid rgba(0, 195, 255, 0.8);
+            }
+        """)
+        back_button.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(self.pre_login_page))
+        header.addWidget(back_button)
+        
+        # Title
+        title = QLabel("ORDER FOOD & DRINKS")
+        title.setFont(QFont("Segoe UI", 20, QFont.Bold))
+        title.setStyleSheet("color: #ff9800;")
+        title.setAlignment(Qt.AlignCenter)
+        header.addWidget(title)
+        
+        # Placeholder for user info
+        user_info = QLabel()
+        user_info.setFixedWidth(200)
+        header.addWidget(user_info)
+        
+        order_layout.addLayout(header)
+        
+        # Decorative line
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setFrameShadow(QFrame.Sunken)
+        line.setStyleSheet("background-color: rgba(255, 152, 0, 0.5); border: none; height: 2px;")
+        order_layout.addWidget(line)
+        
+        # Container for menu items
+        menu_container = QWidget()
+        menu_container.setStyleSheet("""
+            background-color: rgba(18, 18, 30, 0.85);
+            border: 1px solid rgba(255, 152, 0, 0.5);
+            border-radius: 10px;
+            padding: 10px;
+        """)
+        self.menu_layout = QGridLayout(menu_container)
+        self.menu_layout.setContentsMargins(10, 10, 10, 10)
+        self.menu_layout.setSpacing(20)
+        
+        # Add menu container to scrollable area
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setWidget(menu_container)
+        scroll_area.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background-color: transparent;
+            }
+            QScrollBar:vertical {
+                background: rgba(25, 25, 40, 0.5);
+                width: 12px;
+                border-radius: 6px;
+            }
+            QScrollBar::handle:vertical {
+                background: rgba(255, 152, 0, 0.7);
+                min-height: 30px;
+                border-radius: 6px;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+        """)
+        
+        order_layout.addWidget(scroll_area, 1)
+        
+        # Add order page to stacked widget
+        self.stacked_widget.addWidget(order_page)
+        self.stacked_widget.setCurrentWidget(order_page)
+        
+        # Load menu items
+        self.load_menu_items()
+        
+        # Create or get a temporary user and session for non-PC users
+        try:
+            cursor = db.get_cursor()
+            
+            # First check if walk-in user exists
+            cursor.execute("""
+                SELECT id FROM users WHERE civil_id = 'WALK-IN'
+            """)
+            walk_in_user = cursor.fetchone()
+            
+            if walk_in_user:
+                # Use existing walk-in user
+                user_id = walk_in_user['id']
+            else:
+                # Create new walk-in user
+                cursor.execute("""
+                    INSERT INTO users (name, civil_id, phone)
+                    VALUES ('Walk-in Customer', 'WALK-IN', 'WALK-IN')
+                """)
+                db.commit()
+                user_id = cursor.lastrowid
+            
+            # Get or create a special walk-in PC
+            cursor.execute("""
+                SELECT id FROM pcs WHERE pc_number = 999
+            """)
+            walk_in_pc = cursor.fetchone()
+            
+            if not walk_in_pc:
+                # Create the walk-in PC if it doesn't exist
+                cursor.execute("""
+                    INSERT INTO pcs (pc_number, status, is_occupied)
+                    VALUES (999, 'available', FALSE)
+                """)
+                db.commit()
+                walk_in_pc_id = cursor.lastrowid
+            else:
+                walk_in_pc_id = walk_in_pc['id']
+            
+            # Then create a session with the user ID and walk-in PC
+            cursor.execute("""
+                INSERT INTO sessions (user_id, pc_id, status, start_time, duration_minutes)
+                VALUES (%s, %s, 'active', NOW(), 1440)
+            """, (user_id, walk_in_pc_id))
+            db.commit()
+            
+            # Store the user and session info
+            self.current_user = {'id': user_id, 'name': 'Walk-in Customer'}
+            self.current_session = {'id': cursor.lastrowid}
+            
+            cursor.close()
+        except Exception as e:
+            print(f"Error creating temporary user and session: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            self.show_message("Error", "Failed to initialize ordering system. Please try again.", QMessageBox.Critical)
+            self.stacked_widget.setCurrentWidget(self.pre_login_page)
+
     def create_login_page(self):
         """Create the login page with modern gaming styling."""
         page = QWidget()
@@ -1832,6 +2163,7 @@ class LauncherMainWindow(QMainWindow):
         """Load the user's orders into the table."""
         if not self.current_user or not self.current_session:
             self.show_message("Error", "No user or session found. Please log in again.", QMessageBox.Critical)
+            self.stacked_widget.setCurrentWidget(self.pre_login_page)
             return
 
         self.orders_table.setRowCount(0)
@@ -1882,9 +2214,25 @@ class LauncherMainWindow(QMainWindow):
     def show_order_dialog(self, item_id, name, price):
         """Show dialog to confirm order with quantity selection."""
         try:
-            # Check for active user session
-            if not self.current_user or not self.current_session:
-                self.show_message("Error", "No active user session found.", QMessageBox.Warning)
+            # For non-PC users, create a temporary user if needed
+            if not self.current_user and self.current_session:
+                try:
+                    cursor = db.get_cursor()
+                    cursor.execute("""
+                        INSERT INTO users (name, civil_id, phone)
+                        VALUES ('Walk-in Customer', 'WALK-IN', 'WALK-IN')
+                    """)
+                    db.commit()
+                    self.current_user = {'id': cursor.lastrowid, 'name': 'Walk-in Customer'}
+                    cursor.close()
+                except Exception as e:
+                    print(f"Error creating temporary user: {str(e)}")
+                    import traceback
+                    traceback.print_exc()
+            
+            # Check for active session
+            if not self.current_session:
+                self.show_message("Error", "No active session found.", QMessageBox.Warning)
                 return
             
             dialog = QDialog(self)
@@ -2023,9 +2371,6 @@ class LauncherMainWindow(QMainWindow):
                         "Your order status is now 'pending'. Staff will deliver your order shortly.",
                         QMessageBox.Information
                     )
-                    
-                    # Refresh orders table
-                    self.load_user_orders()
                     
                 except Exception as e:
                     db.rollback()

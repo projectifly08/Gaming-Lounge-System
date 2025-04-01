@@ -235,7 +235,7 @@ class SessionsTab(QWidget):
             # Clear existing rows
             self.active_table.setRowCount(0)
             
-            # Get active sessions
+            # Get active sessions (excluding walk-in customers)
             query = """
             SELECT 
                 s.id,
@@ -251,6 +251,7 @@ class SessionsTab(QWidget):
             JOIN users u ON s.user_id = u.id
             JOIN pcs p ON s.pc_id = p.id
             WHERE s.status IN ('active', 'paused')
+            AND u.civil_id != 'WALK-IN'
             ORDER BY s.start_time DESC
             """
             cursor.execute(query)
