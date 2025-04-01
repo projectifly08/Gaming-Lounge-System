@@ -1576,7 +1576,7 @@ class LauncherMainWindow(QMainWindow):
             
             if games:
                 # Calculate grid dimensions
-                cols = 4  # Number of columns in the grid
+                cols = 5  # Number of columns in the grid
                 for i, game in enumerate(games):
                     row = i // cols
                     col = i % cols
@@ -1663,7 +1663,7 @@ class LauncherMainWindow(QMainWindow):
                 
                 # Add category headers and items
                 row = 0
-                cols = 3  # Number of columns in the grid
+                cols = 4  # Number of columns in the grid
                 
                 for category, items in categories.items():
                     # Add category header
@@ -1678,15 +1678,15 @@ class LauncherMainWindow(QMainWindow):
                     for item in items:
                         # Create item card
                         card = QFrame()
-                        card.setFixedSize(300, 400)  # Fixed size for consistency
+                        card.setFixedSize(200, 260)  # Reduced from 250x320
                         card.setStyleSheet("""
                             QFrame {
                                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
                                     stop:0 rgba(30, 30, 50, 0.9),
                                     stop:1 rgba(20, 20, 35, 0.95));
                                 border: 2px solid rgba(255, 152, 0, 0.3);
-                                border-radius: 15px;
-                                padding: 15px;
+                                border-radius: 12px;
+                                padding: 8px;
                             }
                             QFrame:hover {
                                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
@@ -1698,34 +1698,34 @@ class LauncherMainWindow(QMainWindow):
                         
                         # Add shadow effect to the card
                         shadow = QGraphicsDropShadowEffect()
-                        shadow.setBlurRadius(20)
+                        shadow.setBlurRadius(15)
                         shadow.setColor(QColor(255, 152, 0, 100))
-                        shadow.setOffset(0, 5)
+                        shadow.setOffset(0, 4)
                         card.setGraphicsEffect(shadow)
                         
                         # Create layout for the card
                         card_layout = QVBoxLayout(card)
-                        card_layout.setContentsMargins(15, 15, 15, 15)
-                        card_layout.setSpacing(15)
+                        card_layout.setContentsMargins(8, 8, 8, 8)
+                        card_layout.setSpacing(6)
                         
                         # Image container with rounded corners
                         if image_field and item.get(image_field):
                             image_container = QFrame()
-                            image_container.setFixedHeight(200)
+                            image_container.setFixedHeight(120)  # Reduced from 160
                             image_container.setStyleSheet("""
                                 QFrame {
                                     background-color: rgba(40, 40, 60, 0.5);
-                                    border-radius: 10px;
+                                    border-radius: 8px;
                                     border: 1px solid rgba(255, 152, 0, 0.3);
                                 }
                             """)
                             image_layout = QVBoxLayout(image_container)
-                            image_layout.setContentsMargins(5, 5, 5, 5)
+                            image_layout.setContentsMargins(4, 4, 4, 4)
                             
                             image_label = QLabel()
                             pixmap = QPixmap(item[image_field])
                             if not pixmap.isNull():
-                                scaled_pixmap = pixmap.scaled(250, 180, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                                scaled_pixmap = pixmap.scaled(160, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)  # Reduced from 200x140
                                 image_label.setPixmap(scaled_pixmap)
                                 image_label.setAlignment(Qt.AlignCenter)
                                 image_layout.addWidget(image_label)
@@ -1734,7 +1734,7 @@ class LauncherMainWindow(QMainWindow):
                         
                         # Item name with modern styling
                         name_label = QLabel(item['name'])
-                        name_label.setFont(QFont("Segoe UI", 16, QFont.Bold))
+                        name_label.setFont(QFont("Segoe UI", 12, QFont.Bold))  # Reduced from 14
                         name_label.setStyleSheet("""
                             color: #ff9800;
                             letter-spacing: 1px;
@@ -1746,12 +1746,12 @@ class LauncherMainWindow(QMainWindow):
                         if item.get('description'):
                             desc_label = QLabel(item['description'])
                             desc_label.setWordWrap(True)
-                            desc_label.setFont(QFont("Segoe UI", 11))
+                            desc_label.setFont(QFont("Segoe UI", 9))  # Reduced from 10
                             desc_label.setStyleSheet("""
                                 color: #cccccc;
                                 background-color: rgba(40, 40, 60, 0.3);
-                                border-radius: 5px;
-                                padding: 8px;
+                                border-radius: 4px;
+                                padding: 4px;
                             """)
                             desc_label.setAlignment(Qt.AlignCenter)
                             card_layout.addWidget(desc_label)
@@ -1761,17 +1761,17 @@ class LauncherMainWindow(QMainWindow):
                         price_container.setStyleSheet("""
                             QWidget {
                                 background-color: rgba(40, 40, 60, 0.5);
-                                border-radius: 10px;
-                                padding: 10px;
+                                border-radius: 8px;
+                                padding: 6px;
                             }
                         """)
                         price_layout = QHBoxLayout(price_container)
-                        price_layout.setContentsMargins(10, 10, 10, 10)
-                        price_layout.setSpacing(15)
+                        price_layout.setContentsMargins(6, 6, 6, 6)
+                        price_layout.setSpacing(8)
                         
                         # Price with modern styling
                         price_label = QLabel(f"₹{float(item['price']):.2f}")
-                        price_label.setFont(QFont("Segoe UI", 18, QFont.Bold))
+                        price_label.setFont(QFont("Segoe UI", 14, QFont.Bold))  # Reduced from 16
                         price_label.setStyleSheet("""
                             color: #00c853;
                         """)
@@ -1780,17 +1780,17 @@ class LauncherMainWindow(QMainWindow):
                         # Order button with modern styling
                         order_button = QPushButton("ORDER NOW")
                         order_button.setCursor(Qt.PointingHandCursor)
-                        order_button.setFixedWidth(120)
+                        order_button.setFixedWidth(80)  # Reduced from 100
                         order_button.setStyleSheet("""
                             QPushButton {
                                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
                                     stop:0 #ff9800, stop:1 #ff5722);
                                 color: white;
                                 border: none;
-                                border-radius: 8px;
-                                padding: 10px 15px;
+                                border-radius: 6px;
+                                padding: 6px 6px;
                                 font-weight: bold;
-                                font-size: 12px;
+                                font-size: 10px;
                                 letter-spacing: 1px;
                             }
                             QPushButton:hover {
@@ -2075,7 +2075,7 @@ class LauncherMainWindow(QMainWindow):
             
             if apps:
                 # Calculate grid dimensions
-                cols = 4  # Number of columns in the grid
+                cols = 5  # Number of columns in the grid
                 for i, app in enumerate(apps):
                     row = i // cols
                     col = i % cols
