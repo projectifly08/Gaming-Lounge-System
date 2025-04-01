@@ -292,8 +292,8 @@ class Session:
             # Calculate end time based on duration
             query = """
             INSERT INTO sessions (user_id, pc_id, duration_minutes, payment_method, payment_amount, 
-                                 end_time, status)
-            VALUES (%s, %s, %s, %s, %s, DATE_ADD(NOW(), INTERVAL %s MINUTE), 'active')
+                                 start_time, end_time, status)
+            VALUES (%s, %s, %s, %s, %s, NOW(), DATE_ADD(NOW(), INTERVAL %s MINUTE), 'active')
             """
             cursor.execute(query, (user_id, pc_id, duration_minutes, payment_method, 
                                   payment_amount, duration_minutes))

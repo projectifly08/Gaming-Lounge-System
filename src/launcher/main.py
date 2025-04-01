@@ -600,10 +600,12 @@ class LauncherMainWindow(QMainWindow):
         self.login_page = self.create_login_page()
         self.main_page = self.create_main_page()
         self.food_menu_page = self.create_food_menu_page()
+        self.apps_page = self.create_apps_page()
         
         self.stacked_widget.addWidget(self.login_page)
         self.stacked_widget.addWidget(self.main_page)
         self.stacked_widget.addWidget(self.food_menu_page)
+        self.stacked_widget.addWidget(self.apps_page)
         
         # Show login page initially
         self.stacked_widget.setCurrentWidget(self.login_page)
@@ -845,6 +847,29 @@ class LauncherMainWindow(QMainWindow):
         order_food_button.clicked.connect(self.show_food_menu)
         top_bar_layout.addWidget(order_food_button)
         
+        # Add Apps button
+        apps_button = QPushButton("APPS")
+        apps_button.setCursor(Qt.PointingHandCursor)
+        apps_button.setFixedWidth(150)
+        apps_button.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #4CAF50, stop:1 #8BC34A);
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 8px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #66BB6A, stop:1 #9CCC65);
+            }
+            QPushButton:pressed {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #388E3C, stop:1 #689F38);
+            }
+        """)
+        apps_button.clicked.connect(self.show_apps_page)
+        top_bar_layout.addWidget(apps_button)
+        
         # Timer
         self.timer_label = QLabel()
         self.timer_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #00c3ff;")
@@ -1052,6 +1077,101 @@ class LauncherMainWindow(QMainWindow):
 
         return page
     
+    def create_apps_page(self):
+        """Create the apps page with available applications."""
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(20)
+        
+        # Header with title and back button
+        header = QHBoxLayout()
+        
+        # Back button
+        back_button = QPushButton("◀ BACK TO GAMES")
+        back_button.setCursor(Qt.PointingHandCursor)
+        back_button.setFixedWidth(200)
+        back_button.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(30, 30, 50, 0.7);
+                color: white;
+                border: 1px solid rgba(0, 195, 255, 0.5);
+                border-radius: 5px;
+                padding: 8px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: rgba(40, 40, 60, 0.8);
+                border: 1px solid rgba(0, 195, 255, 0.8);
+            }
+        """)
+        back_button.clicked.connect(self.show_main_page)
+        header.addWidget(back_button)
+        
+        # Title
+        title = QLabel("AVAILABLE APPS")
+        title.setFont(QFont("Segoe UI", 20, QFont.Bold))
+        title.setStyleSheet("color: #4CAF50;")
+        title.setAlignment(Qt.AlignCenter)
+        header.addWidget(title)
+        
+        # Placeholder for user info
+        user_info = QLabel()
+        user_info.setFixedWidth(200)
+        header.addWidget(user_info)
+        
+        layout.addLayout(header)
+        
+        # Decorative line
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setFrameShadow(QFrame.Sunken)
+        line.setStyleSheet("background-color: rgba(76, 175, 80, 0.5); border: none; height: 2px;")
+        layout.addWidget(line)
+        
+        # Container for apps
+        apps_container = QWidget()
+        apps_container.setStyleSheet("""
+            background-color: rgba(18, 18, 30, 0.85);
+            border: 1px solid rgba(76, 175, 80, 0.5);
+            border-radius: 10px;
+            padding: 10px;
+        """)
+        self.apps_layout = QGridLayout(apps_container)
+        self.apps_layout.setContentsMargins(10, 10, 10, 10)
+        self.apps_layout.setSpacing(20)
+        
+        # Add apps container to scrollable area
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setWidget(apps_container)
+        scroll_area.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background-color: transparent;
+            }
+            QScrollBar:vertical {
+                background: rgba(25, 25, 40, 0.5);
+                width: 12px;
+                border-radius: 6px;
+            }
+            QScrollBar::handle:vertical {
+                background: rgba(76, 175, 80, 0.7);
+                min-height: 30px;
+                border-radius: 6px;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+        """)
+        
+        layout.addWidget(scroll_area)
+        
+        # Load apps
+        self.load_apps()
+        
+        return page
+
     def handle_login(self):
         """Handle user login."""
         login_id = self.login_input.text().strip()
@@ -1440,9 +1560,9 @@ class LauncherMainWindow(QMainWindow):
             
             # Build the query based on schema
             if availability_column:
-                query = f"SELECT * FROM games WHERE {availability_column} = TRUE ORDER BY name"
+                query = f"SELECT * FROM games WHERE category != 'App' AND {availability_column} = TRUE ORDER BY name"
             else:
-                query = "SELECT * FROM games ORDER BY name"
+                query = "SELECT * FROM games WHERE category != 'App' ORDER BY name"
                 
             cursor.execute(query)
             games = cursor.fetchall()
@@ -1573,7 +1693,6 @@ class LauncherMainWindow(QMainWindow):
                                     stop:0 rgba(40, 40, 60, 0.95),
                                     stop:1 rgba(30, 30, 45, 0.98));
                                 border: 2px solid rgba(255, 152, 0, 0.8);
-                                transform: translateY(-5px);
                             }
                         """)
                         
@@ -1619,7 +1738,6 @@ class LauncherMainWindow(QMainWindow):
                         name_label.setStyleSheet("""
                             color: #ff9800;
                             letter-spacing: 1px;
-                            text-shadow: 0 0 10px rgba(255, 152, 0, 0.3);
                         """)
                         name_label.setAlignment(Qt.AlignCenter)
                         card_layout.addWidget(name_label)
@@ -1656,7 +1774,6 @@ class LauncherMainWindow(QMainWindow):
                         price_label.setFont(QFont("Segoe UI", 18, QFont.Bold))
                         price_label.setStyleSheet("""
                             color: #00c853;
-                            text-shadow: 0 0 10px rgba(0, 200, 83, 0.3);
                         """)
                         price_layout.addWidget(price_label)
                         
@@ -1679,12 +1796,10 @@ class LauncherMainWindow(QMainWindow):
                             QPushButton:hover {
                                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
                                     stop:0 #ffa726, stop:1 #ff7043);
-                                transform: scale(1.05);
                             }
                             QPushButton:pressed {
                                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
                                     stop:0 #f57c00, stop:1 #f4511e);
-                                transform: scale(0.95);
                             }
                         """)
                         order_button.clicked.connect(lambda checked, item_id=item['id'], name=item['name'], price=item['price']: 
@@ -1924,6 +2039,63 @@ class LauncherMainWindow(QMainWindow):
             self.show_message("Error", f"Failed to show order dialog: {str(e)}", QMessageBox.Critical)
             import traceback
             traceback.print_exc()
+
+    def load_apps(self):
+        """Load apps from the database and display them in the grid."""
+        try:
+            cursor = db.get_cursor()
+            
+            # Check if is_available or is_active column exists
+            cursor.execute("DESCRIBE games")
+            columns = [column['Field'] for column in cursor.fetchall()]
+            
+            # Adapt query based on available columns
+            if 'is_available' in columns:
+                availability_column = 'is_available'
+            elif 'is_active' in columns:
+                availability_column = 'is_active'
+            else:
+                availability_column = None
+            
+            # Build the query based on schema
+            if availability_column:
+                query = f"SELECT * FROM games WHERE category = 'App' AND {availability_column} = TRUE ORDER BY name"
+            else:
+                query = "SELECT * FROM games WHERE category = 'App' ORDER BY name"
+                
+            cursor.execute(query)
+            apps = cursor.fetchall()
+            cursor.close()
+            
+            # Clear existing apps
+            for i in reversed(range(self.apps_layout.count())):
+                widget = self.apps_layout.itemAt(i).widget()
+                if widget:
+                    widget.setParent(None)
+            
+            if apps:
+                # Calculate grid dimensions
+                cols = 4  # Number of columns in the grid
+                for i, app in enumerate(apps):
+                    row = i // cols
+                    col = i % cols
+                    game_card = GameCard(app, self)
+                    self.apps_layout.addWidget(game_card, row, col)
+            else:
+                # No apps found
+                no_apps_label = QLabel("No applications available")
+                no_apps_label.setAlignment(Qt.AlignCenter)
+                no_apps_label.setStyleSheet("color: white; font-size: 16px;")
+                self.apps_layout.addWidget(no_apps_label, 0, 0)
+        except Exception as e:
+            self.show_message("Error", f"Failed to load applications: {str(e)}", QMessageBox.Critical)
+            import traceback
+            traceback.print_exc()
+
+    def show_apps_page(self):
+        """Show the apps page and load applications."""
+        self.load_apps()
+        self.stacked_widget.setCurrentWidget(self.apps_page)
 
 
 class LauncherApp:

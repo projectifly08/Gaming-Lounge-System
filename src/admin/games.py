@@ -63,7 +63,7 @@ class GameDialog(QDialog):
         
         # Game type
         self.type_combo = QComboBox()
-        self.type_combo.addItems(["Action", "RPG", "Strategy", "Sports", "Racing", "FPS", "MOBA", "Other"])
+        self.type_combo.addItems(["Action", "App", "RPG", "Strategy", "Sports", "Racing", "FPS", "MOBA", "Other"])
         layout.addRow("Game Type:", self.type_combo)
         
         # Executable path
@@ -152,12 +152,12 @@ class GamesTab(QWidget):
         """)
         header_layout = QHBoxLayout(header)
         
-        title = QLabel("Games Management")
+        title = QLabel("Games / Apps Management")
         title.setFont(QFont("Segoe UI", 20, QFont.Bold))
         title.setStyleSheet("color: #00c3ff;")
         header_layout.addWidget(title)
         
-        add_button = QPushButton("Add New Game")
+        add_button = QPushButton("Add New Game / App")
         add_button.setStyleSheet("""
             QPushButton {
                 background-color: #00c3ff;
