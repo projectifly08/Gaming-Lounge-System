@@ -129,7 +129,7 @@ class RegistrationTab(QWidget):
         registration_layout.addWidget(self.price_label)
         
         # Register button
-        register_button = PrimaryButton("Register User & Assign PC")
+        register_button = PrimaryButton("Register User")
         register_button.clicked.connect(self.register_user)
         registration_layout.addWidget(register_button)
         

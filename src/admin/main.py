@@ -272,7 +272,7 @@ class AdminMainWindow(QMainWindow):
         self.refresh_button.setIconSize(QSize(24, 24))
         
         # Connect refresh button
-        self.refresh_button.clicked.connect(self.refresh_data)
+        self.refresh_button.clicked.connect(lambda: self.refresh_data())
         
         header_layout.addWidget(self.refresh_button)
         header_layout.addSpacing(50)
@@ -350,8 +350,8 @@ class AdminMainWindow(QMainWindow):
         from PyQt5.QtCore import QTimer
         
         self.refresh_timer = QTimer(self)
-        self.refresh_timer.timeout.connect(self.refresh_data)
-        self.refresh_timer.start(30000)  # Refresh every 30 seconds
+        self.refresh_timer.timeout.connect(lambda: self.refresh_data())
+        self.refresh_timer.start(5000)  # Refresh every 5 seconds
     
     def refresh_data(self):
         """Refresh data in all tabs."""

@@ -529,7 +529,8 @@ class LauncherMainWindow(QMainWindow):
         
         # Add orders refresh timer
         self.orders_refresh_timer = QTimer()
-        self.orders_refresh_timer.timeout.connect(self.load_user_orders)
+        
+        self.orders_refresh_timer.timeout.connect(lambda: self.load_user_orders())
         
         # Exit password tracking
         self.exit_password_attempts = 0
@@ -792,105 +793,9 @@ class LauncherMainWindow(QMainWindow):
         return page
 
     def show_non_pc_order_page(self):
-        """Show the non-PC user order page."""
-        # Create order page
-        order_page = QWidget()
-        order_layout = QVBoxLayout(order_page)
-        order_layout.setContentsMargins(20, 20, 20, 20)
-        order_layout.setSpacing(20)
-        
-        # Header with title and back button
-        header = QHBoxLayout()
-        
-        # Back button
-        back_button = QPushButton("◀ BACK")
-        back_button.setCursor(Qt.PointingHandCursor)
-        back_button.setFixedWidth(200)
-        back_button.setStyleSheet("""
-            QPushButton {
-                background-color: rgba(30, 30, 50, 0.7);
-                color: white;
-                border: 1px solid rgba(0, 195, 255, 0.5);
-                border-radius: 5px;
-                padding: 8px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: rgba(40, 40, 60, 0.8);
-                border: 1px solid rgba(0, 195, 255, 0.8);
-            }
-        """)
-        back_button.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(self.pre_login_page))
-        header.addWidget(back_button)
-        
-        # Title
-        title = QLabel("ORDER FOOD & DRINKS")
-        title.setFont(QFont("Segoe UI", 20, QFont.Bold))
-        title.setStyleSheet("color: #ff9800;")
-        title.setAlignment(Qt.AlignCenter)
-        header.addWidget(title)
-        
-        # Placeholder for user info
-        user_info = QLabel()
-        user_info.setFixedWidth(200)
-        header.addWidget(user_info)
-        
-        order_layout.addLayout(header)
-        
-        # Decorative line
-        line = QFrame()
-        line.setFrameShape(QFrame.HLine)
-        line.setFrameShadow(QFrame.Sunken)
-        line.setStyleSheet("background-color: rgba(255, 152, 0, 0.5); border: none; height: 2px;")
-        order_layout.addWidget(line)
-        
-        # Container for menu items
-        menu_container = QWidget()
-        menu_container.setStyleSheet("""
-            background-color: rgba(18, 18, 30, 0.85);
-            border: 1px solid rgba(255, 152, 0, 0.5);
-            border-radius: 10px;
-            padding: 10px;
-        """)
-        self.menu_layout = QGridLayout(menu_container)
-        self.menu_layout.setContentsMargins(10, 10, 10, 10)
-        self.menu_layout.setSpacing(20)
-        
-        # Add menu container to scrollable area
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setWidget(menu_container)
-        scroll_area.setStyleSheet("""
-            QScrollArea {
-                border: none;
-                background-color: transparent;
-            }
-            QScrollBar:vertical {
-                background: rgba(25, 25, 40, 0.5);
-                width: 12px;
-                border-radius: 6px;
-            }
-            QScrollBar::handle:vertical {
-                background: rgba(255, 152, 0, 0.7);
-                min-height: 30px;
-                border-radius: 6px;
-            }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-                height: 0px;
-            }
-        """)
-        
-        order_layout.addWidget(scroll_area, 1)
-        
-        # Add order page to stacked widget
-        self.stacked_widget.addWidget(order_page)
-        self.stacked_widget.setCurrentWidget(order_page)
-        
-        # Load menu items
-        self.load_menu_items()
-        
-        # Create or get a temporary user and session for non-PC users
+        """Show the non-PC user order page using the existing food menu page."""
         try:
+            # First create a temporary user if none exists
             cursor = db.get_cursor()
             
             # First check if walk-in user exists
@@ -940,8 +845,33 @@ class LauncherMainWindow(QMainWindow):
             self.current_session = {'id': cursor.lastrowid}
             
             cursor.close()
+            
+            # Use the existing food menu page (same as PC users)
+            # Initialize with food category
+            self.item_set = "food"
+            
+            # Make sure the food button is checked and select the correct page
+            self.food_btn.setChecked(True)
+            self.drinks_btn.setChecked(False)
+            self.accessories_btn.setChecked(False)
+            self.services_btn.setChecked(False)
+            self.orders_btn.setChecked(False)
+            self.menu_stack.setCurrentIndex(0)
+            
+            # Load menu items for the food category
+            self.load_menu_items()
+            
+            # Load user orders
+            self.load_user_orders()
+            
+            # Start orders refresh timer
+            self.orders_refresh_timer.start(60000)  # Refresh every minute
+            
+            # Show the food menu page
+            self.stacked_widget.setCurrentWidget(self.food_menu_page)
+            
         except Exception as e:
-            print(f"Error creating temporary user and session: {str(e)}")
+            print(f"Error creating temporary session: {str(e)}")
             import traceback
             traceback.print_exc()
             self.show_message("Error", "Failed to initialize ordering system. Please try again.", QMessageBox.Critical)
@@ -1276,7 +1206,7 @@ class LauncherMainWindow(QMainWindow):
         header = QHBoxLayout()
         
         # Back button
-        back_button = QPushButton("◀ BACK TO GAMES")
+        back_button = QPushButton("◀ BACK ")
         back_button.setCursor(Qt.PointingHandCursor)
         back_button.setFixedWidth(200)
         back_button.setStyleSheet("""
@@ -1293,7 +1223,9 @@ class LauncherMainWindow(QMainWindow):
                 border: 1px solid rgba(0, 195, 255, 0.8);
             }
         """)
-        back_button.clicked.connect(self.show_main_page)
+        # back_button.clicked.connect(self.show_main_page)
+        back_button.clicked.connect(lambda: self.handle_back_from_food_menu())
+        # back_button.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(self.food_menu_page))
         header.addWidget(back_button)
         
         # Title
@@ -1317,25 +1249,106 @@ class LauncherMainWindow(QMainWindow):
         line.setStyleSheet("background-color: rgba(255, 152, 0, 0.5); border: none; height: 2px;")
         layout.addWidget(line)
         
+        # Category buttons layout
+        category_buttons = QHBoxLayout()
+        category_buttons.setSpacing(15)
+        category_buttons.setContentsMargins(0, 10, 0, 10)
+        
+        # Button style
+        button_style = """
+            QPushButton {
+                background-color: rgba(30, 30, 50, 0.7);
+                color: white;
+                border: 1px solid rgba(255, 152, 0, 0.5);
+                border-radius: 10px;
+                padding: 15px;
+                font-weight: bold;
+                font-size: 14px;
+                min-width: 130px;
+            }
+            QPushButton:hover {
+                background-color: rgba(40, 40, 60, 0.8);
+                border: 1px solid rgba(255, 152, 0, 0.8);
+            }
+            QPushButton:pressed {
+                background-color: rgba(50, 50, 80, 0.9);
+                border: 1px solid rgba(255, 152, 0, 1);
+            }
+            QPushButton:checked {
+                background-color: rgba(255, 152, 0, 0.7);
+                color: white;
+                border: 1px solid rgba(255, 152, 0, 1);
+            }
+        """
+        
+        # Food button
+        self.food_btn = QPushButton("FOOD")
+        self.food_btn.setCheckable(True)
+        self.food_btn.setChecked(True)
+        self.food_btn.setCursor(Qt.PointingHandCursor)
+        self.food_btn.setStyleSheet(button_style)
+        self.food_btn.clicked.connect(lambda: self.change_menu_category("food"))
+        category_buttons.addWidget(self.food_btn)
+        
+        # Drinks button
+        self.drinks_btn = QPushButton("DRINKS")
+        self.drinks_btn.setCheckable(True)
+        self.drinks_btn.setCursor(Qt.PointingHandCursor)
+        self.drinks_btn.setStyleSheet(button_style)
+        self.drinks_btn.clicked.connect(lambda: self.change_menu_category("drink"))
+        category_buttons.addWidget(self.drinks_btn)
+        
+        # Accessories button
+        self.accessories_btn = QPushButton("ACCESSORIES")
+        self.accessories_btn.setCheckable(True)
+        self.accessories_btn.setCursor(Qt.PointingHandCursor)
+        self.accessories_btn.setStyleSheet(button_style)
+        self.accessories_btn.clicked.connect(lambda: self.change_menu_category("accessory"))
+        category_buttons.addWidget(self.accessories_btn)
+        
+        # Services button
+        self.services_btn = QPushButton("SERVICES")
+        self.services_btn.setCheckable(True)
+        self.services_btn.setCursor(Qt.PointingHandCursor)
+        self.services_btn.setStyleSheet(button_style)
+        self.services_btn.clicked.connect(lambda: self.change_menu_category("service"))
+        category_buttons.addWidget(self.services_btn)
+        
+        # Orders button
+        self.orders_btn = QPushButton("YOUR ORDERS")
+        self.orders_btn.setCheckable(True)
+        self.orders_btn.setCursor(Qt.PointingHandCursor)
+        self.orders_btn.setStyleSheet(button_style)
+        self.orders_btn.clicked.connect(self.show_orders_page)
+        category_buttons.addWidget(self.orders_btn)
+        
+        layout.addLayout(category_buttons)
+        
+        # Main content area
+        self.menu_stack = QStackedWidget()
+        
+        # Food page
+        food_page = QWidget()
+        food_layout = QVBoxLayout(food_page)
+        food_layout.setContentsMargins(0, 0, 0, 0)
+        
         # Container for menu items
-        menu_container = QWidget()
-        menu_container.setStyleSheet("""
+        food_container = QWidget()
+        food_container.setStyleSheet("""
             background-color: rgba(18, 18, 30, 0.85);
             border: 1px solid rgba(255, 152, 0, 0.5);
             border-radius: 10px;
             padding: 10px;
         """)
-        self.menu_layout = QGridLayout(menu_container)
-        self.menu_layout.setContentsMargins(10, 10, 10, 10)
-        self.menu_layout.setSpacing(20)
+        self.food_grid = QGridLayout(food_container)
+        self.food_grid.setContentsMargins(10, 10, 10, 10)
+        self.food_grid.setSpacing(20)
         
-        # Menu items will be dynamically populated in load_menu_items method
-        
-        # Add menu container to scrollable area
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setWidget(menu_container)
-        scroll_area.setStyleSheet("""
+        # Add scrollable area for food
+        food_scroll = QScrollArea()
+        food_scroll.setWidgetResizable(True)
+        food_scroll.setWidget(food_container)
+        food_scroll.setStyleSheet("""
             QScrollArea {
                 border: none;
                 background-color: transparent;
@@ -1354,60 +1367,321 @@ class LauncherMainWindow(QMainWindow):
                 height: 0px;
             }
         """)
+        food_layout.addWidget(food_scroll)
         
-        layout.addWidget(scroll_area, 1)
+        # Drinks page
+        drinks_page = QWidget()
+        drinks_layout = QVBoxLayout(drinks_page)
+        drinks_layout.setContentsMargins(0, 0, 0, 0)
         
-        # Order Status Section
-        order_status_section = QWidget()
-        order_status_layout = QVBoxLayout(order_status_section)
-
-        # Header with refresh button
-        header_layout = QHBoxLayout()
+        # Container for drinks items
+        drinks_container = QWidget()
+        drinks_container.setStyleSheet("""
+            background-color: rgba(18, 18, 30, 0.85);
+            border: 1px solid rgba(0, 150, 255, 0.5);
+            border-radius: 10px;
+            padding: 10px;
+        """)
+        self.drinks_grid = QGridLayout(drinks_container)
+        self.drinks_grid.setContentsMargins(10, 10, 10, 10)
+        self.drinks_grid.setSpacing(20)
         
-        # Title
-        order_status_header = QLabel("Your Orders")
-        order_status_header.setFont(QFont("Segoe UI", 16, QFont.Bold))
-        order_status_header.setStyleSheet("color: #00c3ff;")
-        header_layout.addWidget(order_status_header)
+        # Add scrollable area for drinks
+        drinks_scroll = QScrollArea()
+        drinks_scroll.setWidgetResizable(True)
+        drinks_scroll.setWidget(drinks_container)
+        drinks_scroll.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background-color: transparent;
+            }
+            QScrollBar:vertical {
+                background: rgba(25, 25, 40, 0.5);
+                width: 12px;
+                border-radius: 6px;
+            }
+            QScrollBar::handle:vertical {
+                background: rgba(0, 150, 255, 0.7);
+                min-height: 30px;
+                border-radius: 6px;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+        """)
+        drinks_layout.addWidget(drinks_scroll)
         
-        # Add stretch to push refresh button to the right
-        header_layout.addStretch()
+        # Accessories page
+        accessories_page = QWidget()
+        accessories_layout = QVBoxLayout(accessories_page)
+        accessories_layout.setContentsMargins(0, 0, 0, 0)
         
-        # Refresh button with icon
-        refresh_button = QPushButton("🔄")
-        refresh_button.setCursor(Qt.PointingHandCursor)
-        refresh_button.setStyleSheet("""
+        # Container for accessories items
+        accessories_container = QWidget()
+        accessories_container.setStyleSheet("""
+            background-color: rgba(18, 18, 30, 0.85);
+            border: 1px solid rgba(153, 0, 255, 0.5);
+            border-radius: 10px;
+            padding: 10px;
+        """)
+        self.accessories_grid = QGridLayout(accessories_container)
+        self.accessories_grid.setContentsMargins(10, 10, 10, 10)
+        self.accessories_grid.setSpacing(20)
+        
+        # Add scrollable area for accessories
+        accessories_scroll = QScrollArea()
+        accessories_scroll.setWidgetResizable(True)
+        accessories_scroll.setWidget(accessories_container)
+        accessories_scroll.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background-color: transparent;
+            }
+            QScrollBar:vertical {
+                background: rgba(25, 25, 40, 0.5);
+                width: 12px;
+                border-radius: 6px;
+            }
+            QScrollBar::handle:vertical {
+                background: rgba(153, 0, 255, 0.7);
+                min-height: 30px;
+                border-radius: 6px;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+        """)
+        accessories_layout.addWidget(accessories_scroll)
+        
+        # Services page
+        services_page = QWidget()
+        services_layout = QVBoxLayout(services_page)
+        services_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Container for services items
+        services_container = QWidget()
+        services_container.setStyleSheet("""
+            background-color: rgba(18, 18, 30, 0.85);
+            border: 1px solid rgba(0, 200, 100, 0.5);
+            border-radius: 10px;
+            padding: 10px;
+        """)
+        self.services_grid = QGridLayout(services_container)
+        self.services_grid.setContentsMargins(10, 10, 10, 10)
+        self.services_grid.setSpacing(20)
+        
+        # Add scrollable area for services
+        services_scroll = QScrollArea()
+        services_scroll.setWidgetResizable(True)
+        services_scroll.setWidget(services_container)
+        services_scroll.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background-color: transparent;
+            }
+            QScrollBar:vertical {
+                background: rgba(25, 25, 40, 0.5);
+                width: 12px;
+                border-radius: 6px;
+            }
+            QScrollBar::handle:vertical {
+                background: rgba(0, 200, 100, 0.7);
+                min-height: 30px;
+                border-radius: 6px;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+        """)
+        services_layout.addWidget(services_scroll)
+        
+        # Add pages to stack
+        self.menu_stack.addWidget(food_page)
+        self.menu_stack.addWidget(drinks_page)
+        self.menu_stack.addWidget(accessories_page)
+        self.menu_stack.addWidget(services_page)
+        
+        # Set default to food page
+        self.menu_stack.setCurrentIndex(0)
+        
+        # Store category layout references
+        self.category_layouts = {
+            "food": self.food_grid,
+            "drink": self.drinks_grid,
+            "accessory": self.accessories_grid,
+            "service": self.services_grid
+        }
+        
+        # Add stacked widget to main layout
+        layout.addWidget(self.menu_stack, 1)  # 1 = stretch factor to take available space
+        
+        return page
+    
+    def create_orders_page(self):
+        """Create a dedicated page for user orders."""
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(20)
+        
+        # Header with title and back button
+        header = QHBoxLayout()
+        
+        # Back button
+        back_button = QPushButton("◀ BACK TO MENU")
+        back_button.setCursor(Qt.PointingHandCursor)
+        back_button.setFixedWidth(200)
+        back_button.setStyleSheet("""
             QPushButton {
-                background-color: rgba(0, 195, 255, 0.2);
-                color: #00c3ff;
+                background-color: rgba(30, 30, 50, 0.7);
+                color: white;
                 border: 1px solid rgba(0, 195, 255, 0.5);
                 border-radius: 5px;
-                padding: 5px 15px;
+                padding: 8px;
                 font-weight: bold;
             }
             QPushButton:hover {
-                background-color: rgba(0, 195, 255, 0.3);
+                background-color: rgba(40, 40, 60, 0.8);
                 border: 1px solid rgba(0, 195, 255, 0.8);
             }
-            QPushButton:pressed {
-                background-color: rgba(0, 195, 255, 0.4);
+        """)
+        back_button.clicked.connect(lambda: self.handle_back_from_orders())
+        header.addWidget(back_button)
+        
+        # Title
+        title = QLabel("YOUR ORDERS")
+        title.setFont(QFont("Segoe UI", 20, QFont.Bold))
+        title.setStyleSheet("color: #00c3ff;")
+        title.setAlignment(Qt.AlignCenter)
+        header.addWidget(title)
+        
+        # Refresh button
+        refresh_button = QPushButton("🔄")
+        refresh_button.setCursor(Qt.PointingHandCursor)
+        refresh_button.setFixedWidth(40)
+        refresh_button.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(30, 30, 50, 0.7);
+                color: #00c3ff;
+                border: 1px solid rgba(0, 195, 255, 0.5);
+                border-radius: 5px;
+                padding: 5px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: rgba(40, 40, 60, 0.8);
+                border: 1px solid rgba(0, 195, 255, 0.8);
             }
         """)
-        refresh_button.clicked.connect(self.load_user_orders)
-        header_layout.addWidget(refresh_button)
+        refresh_button.clicked.connect(lambda: self.load_user_orders())
+        header.addWidget(refresh_button)
         
-        order_status_layout.addLayout(header_layout)
-
+        layout.addLayout(header)
+        
+        # Decorative line
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setFrameShadow(QFrame.Sunken)
+        line.setStyleSheet("background-color: rgba(0, 195, 255, 0.5); border: none; height: 2px;")
+        layout.addWidget(line)
+        
+        # Orders container with custom styling
+        orders_container = QWidget()
+        orders_container.setStyleSheet("""
+            background-color: rgba(18, 18, 30, 0.85);
+            border: 1px solid rgba(0, 195, 255, 0.5);
+            border-radius: 10px;
+            padding: 20px;
+        """)
+        orders_layout = QVBoxLayout(orders_container)
+        
+        # Orders header
+        orders_header = QLabel("Current & Past Orders")
+        orders_header.setFont(QFont("Segoe UI", 16, QFont.Bold))
+        orders_header.setStyleSheet("color: #00c3ff; margin-bottom: 15px;")
+        orders_layout.addWidget(orders_header)
+        
         # Orders table
         self.orders_table = StyledTable()
         self.orders_table.setColumnCount(4)
         self.orders_table.setHorizontalHeaderLabels(["Order #", "Items", "Status", "Action"])
-        order_status_layout.addWidget(self.orders_table)
-
-        layout.addWidget(order_status_section)
-
+        # Set header height and style
+        header = self.orders_table.horizontalHeader()
+        header.setDefaultAlignment(Qt.AlignCenter)
+        header.setFixedHeight(70)  # Increased height
+        header.setStyleSheet("""
+            QHeaderView::section {
+                background-color: rgba(30, 30, 50, 0.9);
+                color: #00c3ff;
+                font-weight: bold;
+                font-size: 13px;
+                padding: 0px;
+                margin: 0px;
+                border: none;
+                border-right: 1px solid rgba(0, 195, 255, 0.3);
+            }
+            QHeaderView::section:last {
+                border-right: none;
+            }
+        """)
+        # Set column widths
+        self.orders_table.setColumnWidth(0, 80)  # Order #
+        self.orders_table.setColumnWidth(1, 350)  # Items
+        self.orders_table.setColumnWidth(2, 120)  # Status
+        self.orders_table.setColumnWidth(3, 150)  # Action
+        
+        orders_layout.addWidget(self.orders_table)
+        
+        # Add orders container to layout
+        layout.addWidget(orders_container)
+        
         return page
     
+    def change_menu_category(self, category):
+        """Change the menu category and update displayed items."""
+        # Set the current category
+        self.item_set = category
+        
+        # Update which tab is selected/highlighted
+        self.food_btn.setChecked(category == "food")
+        self.drinks_btn.setChecked(category == "drink")
+        self.accessories_btn.setChecked(category == "accessory")  
+        self.services_btn.setChecked(category == "service")
+        self.orders_btn.setChecked(False)
+        
+        # Change the stack widget page based on category
+        if category == "food":
+            self.menu_stack.setCurrentIndex(0)
+        elif category == "drink":
+            self.menu_stack.setCurrentIndex(1)
+        elif category == "accessory":
+            self.menu_stack.setCurrentIndex(2)
+        elif category == "service":
+            self.menu_stack.setCurrentIndex(3)
+        
+        # Reload menu items for this category
+        self.load_menu_items()
+    
+    def show_orders_page(self):
+        """Show the orders page and update displayed orders."""
+        # Update button states
+        self.food_btn.setChecked(False)
+        self.drinks_btn.setChecked(False)
+        self.accessories_btn.setChecked(False)
+        self.services_btn.setChecked(False)
+        self.orders_btn.setChecked(True)
+        
+        # Create the orders page if it doesn't exist
+        if not hasattr(self, 'orders_page'):
+            self.orders_page = self.create_orders_page()
+            self.stacked_widget.addWidget(self.orders_page)
+        
+        # Refresh orders before showing
+        self.load_user_orders()
+        
+        # Show the orders page
+        self.stacked_widget.setCurrentWidget(self.orders_page)
+
     def create_apps_page(self):
         """Create the apps page with available applications."""
         page = QWidget()
@@ -1612,14 +1886,6 @@ class LauncherMainWindow(QMainWindow):
             # If no PC is automatically assigned, use the pc_number provided to the launcher
             if not self.pc_number:
                 self.show_message("Error", "No PC number assigned. Please contact staff.", QMessageBox.Warning)
-                return
-            
-            if not pc:
-                self.show_message("Error", f"PC #{self.pc_number} does not exist. Please contact staff.", QMessageBox.Warning)
-                return
-            
-            if pc.is_occupied:
-                self.show_message("Error", f"PC #{self.pc_number} is already occupied. Please contact staff.", QMessageBox.Warning)
                 return
             
             self.show_message("Error", "No PC number assigned. Please contact staff.", QMessageBox.Warning)
@@ -1926,11 +2192,33 @@ class LauncherMainWindow(QMainWindow):
 
     def show_food_menu(self):
         """Show the food menu page and load menu items."""
+        if not self.current_user or not self.current_session:
+            self.show_message("Error", "No user or session found. Please log in again.", QMessageBox.Critical)
+            # Return to pre-login page instead of showing food menu
+            self.stacked_widget.setCurrentWidget(self.pre_login_page)
+            return
+        
+        # Initialize with food category
+        self.item_set = "food"
+        
+        # Make sure the food button is checked and select the correct page
+        self.food_btn.setChecked(True)
+        self.drinks_btn.setChecked(False)
+        self.accessories_btn.setChecked(False)
+        self.services_btn.setChecked(False)
+        self.orders_btn.setChecked(False)
+        self.menu_stack.setCurrentIndex(0)
+        
+        # Load menu items for the food category
         self.load_menu_items()
+        
         # Load user orders
         self.load_user_orders()
-        # Start orders refresh timer (refresh every 1 seconds)
-        self.orders_refresh_timer.start(1000)
+        
+        # Start orders refresh timer
+        self.orders_refresh_timer.start(60000)  # Refresh every minute
+        
+        # Show the food menu page
         self.stacked_widget.setCurrentWidget(self.food_menu_page)
 
     def show_main_page(self):
@@ -1942,9 +2230,18 @@ class LauncherMainWindow(QMainWindow):
     def load_menu_items(self):
         """Load menu items from the database and display them."""
         try:
-            # Clear existing items
-            for i in reversed(range(self.menu_layout.count())): 
-                self.menu_layout.itemAt(i).widget().setParent(None)
+            # Get the target layout based on current category
+            if not hasattr(self, 'category_layouts') or self.item_set not in self.category_layouts:
+                print(f"Error: Category '{self.item_set}' not found in layouts")
+                return
+                
+            target_layout = self.category_layouts[self.item_set]
+            
+            # Clear existing items from the target layout
+            for i in reversed(range(target_layout.count())): 
+                item = target_layout.itemAt(i)
+                if item and item.widget():
+                    item.widget().setParent(None)
             
             # Get menu items from database
             cursor = db.get_cursor()
@@ -1974,190 +2271,198 @@ class LauncherMainWindow(QMainWindow):
             if image_field:
                 query += f", {image_field}"
             
-            query += " FROM menu_items"
+            # Start WHERE clause
+            query += " FROM menu_items WHERE 1=1"
+            
+            # Add availability filter
             if availability_field:
-                query += f" WHERE {availability_field}"
-            query += " ORDER BY category, name"
+                query += f" AND {availability_field}"
+                
+            # Order by name
+            query += " ORDER BY name"
             
             cursor.execute(query)
             menu_items = cursor.fetchall()
             cursor.close()
             
             if menu_items:
-                # Group items by category
-                categories = {}
+                # Filter items for the current category (case-insensitive)
+                filtered_items = []
                 for item in menu_items:
-                    category = item.get('category', 'other')
-                    if category not in categories:
-                        categories[category] = []
-                    categories[category].append(item)
-                
-                # Add category headers and items
-                row = 0
-                cols = 4  # Number of columns in the grid
-                
-                for category, items in categories.items():
-                    # Add category header
-                    category_label = QLabel(category.upper())
-                    category_label.setFont(QFont("Segoe UI", 16, QFont.Bold))
-                    category_label.setStyleSheet("color: #ff9800;")
-                    self.menu_layout.addWidget(category_label, row, 0, 1, cols)
-                    row += 1
+                    item_category = item.get('category', '').lower()
                     
-                    # Add items in this category
-                    col = 0
-                    for item in items:
-                        # Create item card
-                        card = QFrame()
-                        card.setFixedSize(200, 260)  # Reduced from 250x320
-                        card.setStyleSheet("""
+                    # Match exact category name
+                    if self.item_set.lower() == item_category:
+                        filtered_items.append(item)
+                    # Handle variations like "drinks" vs "drink"
+                    elif (self.item_set == "food" and "food" in item_category) or \
+                         (self.item_set == "drink" and any(c in item_category for c in ["drink", "beverage"])) or \
+                         (self.item_set == "accessory" and any(c in item_category for c in ["accessory", "accessories"])) or \
+                         (self.item_set == "service" and any(c in item_category for c in ["service", "services"])):
+                        filtered_items.append(item)
+                        
+                # Add items to the grid
+                row = 0
+                cols = 5  # Number of columns in the grid
+                col = 0
+                
+                for item in filtered_items:
+                    # Create item card
+                    card = QFrame()
+                    card.setFixedSize(200, 260)  # Reduced from 250x320
+                    card.setStyleSheet("""
+                        QFrame {
+                            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+                                stop:0 rgba(30, 30, 50, 0.9),
+                                stop:1 rgba(20, 20, 35, 0.95));
+                            border: 2px solid rgba(255, 152, 0, 0.3);
+                            border-radius: 12px;
+                            padding: 8px;
+                        }
+                        QFrame:hover {
+                            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+                                stop:0 rgba(40, 40, 60, 0.95),
+                                stop:1 rgba(30, 30, 45, 0.98));
+                            border: 2px solid rgba(255, 152, 0, 0.8);
+                        }
+                    """)
+                    
+                    # Add shadow effect to the card
+                    shadow = QGraphicsDropShadowEffect()
+                    shadow.setBlurRadius(15)
+                    shadow.setColor(QColor(255, 152, 0, 100))
+                    shadow.setOffset(0, 4)
+                    card.setGraphicsEffect(shadow)
+                    
+                    # Create layout for the card
+                    card_layout = QVBoxLayout(card)
+                    card_layout.setContentsMargins(8, 8, 8, 8)
+                    card_layout.setSpacing(6)
+                    
+                    # Image container with rounded corners
+                    if image_field and item.get(image_field):
+                        image_container = QFrame()
+                        image_container.setFixedHeight(120)  # Reduced from 160
+                        image_container.setStyleSheet("""
                             QFrame {
-                                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
-                                    stop:0 rgba(30, 30, 50, 0.9),
-                                    stop:1 rgba(20, 20, 35, 0.95));
-                                border: 2px solid rgba(255, 152, 0, 0.3);
-                                border-radius: 12px;
-                                padding: 8px;
-                            }
-                            QFrame:hover {
-                                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
-                                    stop:0 rgba(40, 40, 60, 0.95),
-                                    stop:1 rgba(30, 30, 45, 0.98));
-                                border: 2px solid rgba(255, 152, 0, 0.8);
-                            }
-                        """)
-                        
-                        # Add shadow effect to the card
-                        shadow = QGraphicsDropShadowEffect()
-                        shadow.setBlurRadius(15)
-                        shadow.setColor(QColor(255, 152, 0, 100))
-                        shadow.setOffset(0, 4)
-                        card.setGraphicsEffect(shadow)
-                        
-                        # Create layout for the card
-                        card_layout = QVBoxLayout(card)
-                        card_layout.setContentsMargins(8, 8, 8, 8)
-                        card_layout.setSpacing(6)
-                        
-                        # Image container with rounded corners
-                        if image_field and item.get(image_field):
-                            image_container = QFrame()
-                            image_container.setFixedHeight(120)  # Reduced from 160
-                            image_container.setStyleSheet("""
-                                QFrame {
-                                    background-color: rgba(40, 40, 60, 0.5);
-                                    border-radius: 8px;
-                                    border: 1px solid rgba(255, 152, 0, 0.3);
-                                }
-                            """)
-                            image_layout = QVBoxLayout(image_container)
-                            image_layout.setContentsMargins(4, 4, 4, 4)
-                            
-                            image_label = QLabel()
-                            pixmap = QPixmap(item[image_field])
-                            if not pixmap.isNull():
-                                scaled_pixmap = pixmap.scaled(160, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)  # Reduced from 200x140
-                                image_label.setPixmap(scaled_pixmap)
-                                image_label.setAlignment(Qt.AlignCenter)
-                                image_layout.addWidget(image_label)
-                            
-                            card_layout.addWidget(image_container)
-                        
-                        # Item name with modern styling
-                        name_label = QLabel(item['name'])
-                        name_label.setFont(QFont("Segoe UI", 12, QFont.Bold))  # Reduced from 14
-                        name_label.setStyleSheet("""
-                            color: #ff9800;
-                            letter-spacing: 1px;
-                        """)
-                        name_label.setAlignment(Qt.AlignCenter)
-                        card_layout.addWidget(name_label)
-                        
-                        # Item description with modern styling
-                        if item.get('description'):
-                            desc_label = QLabel(item['description'])
-                            desc_label.setWordWrap(True)
-                            desc_label.setFont(QFont("Segoe UI", 9))  # Reduced from 10
-                            desc_label.setStyleSheet("""
-                                color: #cccccc;
-                                background-color: rgba(40, 40, 60, 0.3);
-                                border-radius: 4px;
-                                padding: 4px;
-                            """)
-                            desc_label.setAlignment(Qt.AlignCenter)
-                            card_layout.addWidget(desc_label)
-                        
-                        # Price and order button container with modern styling
-                        price_container = QWidget()
-                        price_container.setStyleSheet("""
-                            QWidget {
                                 background-color: rgba(40, 40, 60, 0.5);
                                 border-radius: 8px;
-                                padding: 6px;
+                                border: 1px solid rgba(255, 152, 0, 0.3);
                             }
                         """)
-                        price_layout = QHBoxLayout(price_container)
-                        price_layout.setContentsMargins(6, 6, 6, 6)
-                        price_layout.setSpacing(8)
+                        image_layout = QVBoxLayout(image_container)
+                        image_layout.setContentsMargins(4, 4, 4, 4)
                         
-                        # Price with modern styling
-                        price_label = QLabel(f"₹{float(item['price']):.2f}")
-                        price_label.setFont(QFont("Segoe UI", 14, QFont.Bold))  # Reduced from 16
-                        price_label.setStyleSheet("""
-                            color: #00c853;
-                        """)
-                        price_layout.addWidget(price_label)
+                        image_label = QLabel()
+                        pixmap = QPixmap(item[image_field])
+                        if not pixmap.isNull():
+                            scaled_pixmap = pixmap.scaled(160, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)  # Reduced from 200x140
+                            image_label.setPixmap(scaled_pixmap)
+                            image_label.setAlignment(Qt.AlignCenter)
+                            image_layout.addWidget(image_label)
                         
-                        # Order button with modern styling
-                        order_button = QPushButton("ORDER NOW")
-                        order_button.setCursor(Qt.PointingHandCursor)
-                        order_button.setFixedWidth(80)  # Reduced from 100
-                        order_button.setStyleSheet("""
-                            QPushButton {
-                                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
-                                    stop:0 #ff9800, stop:1 #ff5722);
-                                color: white;
-                                border: none;
-                                border-radius: 6px;
-                                padding: 6px 6px;
-                                font-weight: bold;
-                                font-size: 10px;
-                                letter-spacing: 1px;
-                            }
-                            QPushButton:hover {
-                                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
-                                    stop:0 #ffa726, stop:1 #ff7043);
-                            }
-                            QPushButton:pressed {
-                                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
-                                    stop:0 #f57c00, stop:1 #f4511e);
-                            }
-                        """)
-                        order_button.clicked.connect(lambda checked, item_id=item['id'], name=item['name'], price=item['price']: 
-                            self.show_order_dialog(item_id, name, price))
-                        price_layout.addWidget(order_button)
-                        
-                        card_layout.addWidget(price_container)
-                        self.menu_layout.addWidget(card, row, col)
-                        
-                        col += 1
-                        if col >= cols:
-                            col = 0
-                            row += 1
+                        card_layout.addWidget(image_container)
                     
-                    # Add spacer after category
-                    row += 1
+                    # Item name with modern styling
+                    name_label = QLabel(item['name'])
+                    name_label.setFont(QFont("Segoe UI", 12, QFont.Bold))  # Reduced from 14
+                    name_label.setStyleSheet("""
+                        color: #ff9800;
+                        letter-spacing: 1px;
+                    """)
+                    name_label.setAlignment(Qt.AlignCenter)
+                    card_layout.addWidget(name_label)
+                    
+                    # Item description with modern styling
+                    if item.get('description'):
+                        desc_label = QLabel(item['description'])
+                        desc_label.setWordWrap(True)
+                        desc_label.setFont(QFont("Segoe UI", 9))  # Reduced from 10
+                        desc_label.setStyleSheet("""
+                            color: #cccccc;
+                            background-color: rgba(40, 40, 60, 0.3);
+                            border-radius: 4px;
+                            padding: 4px;
+                        """)
+                        desc_label.setAlignment(Qt.AlignCenter)
+                        card_layout.addWidget(desc_label)
+                    
+                    # Price and order button container with modern styling
+                    price_container = QWidget()
+                    price_container.setStyleSheet("""
+                        QWidget {
+                            background-color: rgba(40, 40, 60, 0.5);
+                            border-radius: 8px;
+                            padding: 6px;
+                        }
+                    """)
+                    price_layout = QHBoxLayout(price_container)
+                    price_layout.setContentsMargins(6, 6, 6, 6)
+                    price_layout.setSpacing(8)
+                    
+                    # Price with modern styling
+                    price_label = QLabel(f"₹{float(item['price']):.2f}")
+                    price_label.setFont(QFont("Segoe UI", 14, QFont.Bold))  # Reduced from 16
+                    price_label.setStyleSheet("""
+                        color: #00c853;
+                    """)
+                    price_layout.addWidget(price_label)
+                    
+                    # Order button with modern styling
+                    order_button = QPushButton("ORDER NOW")
+                    order_button.setCursor(Qt.PointingHandCursor)
+                    order_button.setFixedWidth(80)  # Reduced from 100
+                    order_button.setStyleSheet("""
+                        QPushButton {
+                            background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+                                stop:0 #ff9800, stop:1 #ff5722);
+                            color: white;
+                            border: none;
+                            border-radius: 6px;
+                            padding: 6px 6px;
+                            font-weight: bold;
+                            font-size: 10px;
+                            letter-spacing: 1px;
+                        }
+                        QPushButton:hover {
+                            background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+                                stop:0 #ffa726, stop:1 #ff7043);
+                        }
+                        QPushButton:pressed {
+                            background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+                                stop:0 #f57c00, stop:1 #f4511e);
+                        }
+                    """)
+                    order_button.clicked.connect(lambda checked, item_id=item['id'], name=item['name'], price=item['price']: 
+                        self.show_order_dialog(item_id, name, price))
+                    price_layout.addWidget(order_button)
+                    
+                    card_layout.addWidget(price_container)
+                    target_layout.addWidget(card, row, col)
+                    
+                    col += 1
+                    if col >= cols:
+                        col = 0
+                        row += 1
+                        
+                if not filtered_items:
+                    # No items found for this category
+                    no_items_label = QLabel(f"No items available for category: {self.item_set}")
+                    no_items_label.setAlignment(Qt.AlignCenter)
+                    no_items_label.setStyleSheet("color: white; font-size: 16px;")
+                    target_layout.addWidget(no_items_label, 0, 0)
             else:
                 # No menu items found
-                no_items_label = QLabel("No menu items available")
+                no_items_label = QLabel(f"No items available for category: {self.item_set}")
                 no_items_label.setAlignment(Qt.AlignCenter)
                 no_items_label.setStyleSheet("color: white; font-size: 16px;")
-                self.menu_layout.addWidget(no_items_label, 0, 0)
+                target_layout.addWidget(no_items_label, 0, 0)
                 
         except Exception as e:
-            self.show_message("Error", f"Failed to load menu items: {str(e)}", QMessageBox.Critical)
+            print(f"Error in load_menu_items: {str(e)}")
             import traceback
             traceback.print_exc()
+            self.show_message("Error", f"Failed to load menu items: {str(e)}", QMessageBox.Critical)
 
     def load_user_orders(self):
         """Load the user's orders into the table."""
@@ -2165,7 +2470,13 @@ class LauncherMainWindow(QMainWindow):
             self.show_message("Error", "No user or session found. Please log in again.", QMessageBox.Critical)
             self.stacked_widget.setCurrentWidget(self.pre_login_page)
             return
-
+            
+        # Make sure the orders page and table exist
+        if not hasattr(self, 'orders_page'):
+            self.orders_page = self.create_orders_page()
+            self.stacked_widget.addWidget(self.orders_page)
+            
+        # Now we can safely access the orders_table
         self.orders_table.setRowCount(0)
         orders = Order.get_by_session(self.current_session['id'])
 
@@ -2441,6 +2752,21 @@ class LauncherMainWindow(QMainWindow):
         """Show the apps page and load applications."""
         self.load_apps()
         self.stacked_widget.setCurrentWidget(self.apps_page)
+
+    def handle_back_from_food_menu(self):
+        """Handle back button from food menu depending on user type."""
+        # Check if the user is a walk-in (non-PC) customer
+        if self.current_user and isinstance(self.current_user, dict) and self.current_user.get('name') == 'Walk-in Customer':
+            # Non-PC user - go back to pre-login page
+            self.stacked_widget.setCurrentWidget(self.pre_login_page)
+        else:
+            # PC user - go back to main page
+            self.stacked_widget.setCurrentWidget(self.main_page)
+
+    def handle_back_from_orders(self):
+        """Handle back button from orders page."""
+        # Always go back to the food menu page
+        self.stacked_widget.setCurrentWidget(self.food_menu_page)
 
 
 class LauncherApp:

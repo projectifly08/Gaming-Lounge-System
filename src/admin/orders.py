@@ -188,7 +188,7 @@ class OrdersTab(QWidget):
         
         # Set up timer for auto-refresh
         self.timer = QTimer(self)
-        self.timer.timeout.connect(self.refresh_data)
+        self.timer.timeout.connect(lambda: self.refresh_data())
         self.timer.start(5000)  # Refresh every 5 seconds
     
     def init_ui(self):
