@@ -517,6 +517,175 @@ class MenuItem:
             cursor.close()
 
 
+class MenuItemExtra:
+    """Model for menu item extras."""
+    
+    def __init__(self, id=None, menu_item_id=None, name=None, price=None, available=True):
+        self.id = id
+        self.menu_item_id = menu_item_id
+        self.name = name
+        self.price = price
+        self.available = available
+    
+    @staticmethod
+    def get_by_menu_item(menu_item_id):
+        """Get all extras for a menu item."""
+        cursor = db.get_cursor()
+        try:
+            query = "SELECT * FROM item_extras WHERE menu_item_id = %s AND available = TRUE"
+            cursor.execute(query, (menu_item_id,))
+            results = cursor.fetchall()
+            return [MenuItemExtra(**result) for result in results]
+        finally:
+            cursor.close()
+    
+    @staticmethod
+    def get_by_id(extra_id):
+        """Get an extra by ID."""
+        cursor = db.get_cursor()
+        try:
+            query = "SELECT * FROM item_extras WHERE id = %s"
+            cursor.execute(query, (extra_id,))
+            result = cursor.fetchone()
+            if result:
+                return MenuItemExtra(**result)
+            return None
+        finally:
+            cursor.close()
+    
+    @staticmethod
+    def create(menu_item_id, name, price):
+        """Create a new menu item extra."""
+        cursor = db.get_cursor()
+        try:
+            query = """
+            INSERT INTO item_extras (menu_item_id, name, price)
+            VALUES (%s, %s, %s)
+            """
+            cursor.execute(query, (menu_item_id, name, price))
+            db.commit()
+            return cursor.lastrowid
+        except Exception as e:
+            db.rollback()
+            raise e
+        finally:
+            cursor.close()
+    
+    def update(self):
+        """Update a menu item extra."""
+        cursor = db.get_cursor()
+        try:
+            query = """
+            UPDATE item_extras 
+            SET name = %s, price = %s, available = %s
+            WHERE id = %s
+            """
+            cursor.execute(query, (self.name, self.price, self.available, self.id))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise e
+        finally:
+            cursor.close()
+    
+    def delete(self):
+        """Delete a menu item extra."""
+        cursor = db.get_cursor()
+        try:
+            query = "DELETE FROM item_extras WHERE id = %s"
+            cursor.execute(query, (self.id,))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise e
+        finally:
+            cursor.close()
+
+
+class MenuItemTakeout:
+    """Model for menu item takeouts."""
+    
+    def __init__(self, id=None, menu_item_id=None, name=None, available=True):
+        self.id = id
+        self.menu_item_id = menu_item_id
+        self.name = name
+        self.available = available
+    
+    @staticmethod
+    def get_by_menu_item(menu_item_id):
+        """Get all takeouts for a menu item."""
+        cursor = db.get_cursor()
+        try:
+            query = "SELECT * FROM item_takeouts WHERE menu_item_id = %s AND available = TRUE"
+            cursor.execute(query, (menu_item_id,))
+            results = cursor.fetchall()
+            return [MenuItemTakeout(**result) for result in results]
+        finally:
+            cursor.close()
+    
+    @staticmethod
+    def get_by_id(takeout_id):
+        """Get a takeout by ID."""
+        cursor = db.get_cursor()
+        try:
+            query = "SELECT * FROM item_takeouts WHERE id = %s"
+            cursor.execute(query, (takeout_id,))
+            result = cursor.fetchone()
+            if result:
+                return MenuItemTakeout(**result)
+            return None
+        finally:
+            cursor.close()
+    
+    @staticmethod
+    def create(menu_item_id, name):
+        """Create a new menu item takeout."""
+        cursor = db.get_cursor()
+        try:
+            query = """
+            INSERT INTO item_takeouts (menu_item_id, name)
+            VALUES (%s, %s)
+            """
+            cursor.execute(query, (menu_item_id, name))
+            db.commit()
+            return cursor.lastrowid
+        except Exception as e:
+            db.rollback()
+            raise e
+        finally:
+            cursor.close()
+    
+    def update(self):
+        """Update a menu item takeout."""
+        cursor = db.get_cursor()
+        try:
+            query = """
+            UPDATE item_takeouts 
+            SET name = %s, available = %s
+            WHERE id = %s
+            """
+            cursor.execute(query, (self.name, self.available, self.id))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise e
+        finally:
+            cursor.close()
+    
+    def delete(self):
+        """Delete a menu item takeout."""
+        cursor = db.get_cursor()
+        try:
+            query = "DELETE FROM item_takeouts WHERE id = %s"
+            cursor.execute(query, (self.id,))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise e
+        finally:
+            cursor.close()
+
+
 class Order:
     """Order model for the gaming lounge system."""
     
@@ -537,39 +706,83 @@ class Order:
         
         Args:
             session_id: The session ID
-            items: List of tuples (menu_item_id, quantity)
+            items: List of dicts with:
+                - menu_item_id: The menu item ID
+                - quantity: The quantity
+                - extras: List of extra IDs (optional)
+                - takeouts: List of takeout IDs (optional)
         """
         cursor = db.get_cursor()
         try:
             # Calculate total amount
             total_amount = 0
-            for item_id, quantity in items:
-                query = "SELECT price FROM menu_items WHERE id = %s"
-                cursor.execute(query, (item_id,))
+            for item in items:
+                menu_item_id = item['menu_item_id']
+                quantity = item['quantity']
+                extras = item.get('extras', [])
+                
+                # Get menu item price
+                cursor.execute("SELECT price FROM menu_items WHERE id = %s", (menu_item_id,))
                 result = cursor.fetchone()
                 if result:
-                    total_amount += result['price'] * quantity
+                    item_price = result['price']
+                    item_total = item_price * quantity
+                    
+                    # Add extras cost
+                    for extra_id in extras:
+                        cursor.execute("SELECT price FROM item_extras WHERE id = %s", (extra_id,))
+                        extra_result = cursor.fetchone()
+                        if extra_result:
+                            item_total += extra_result['price'] * quantity
+                    
+                    total_amount += item_total
             
             # Create order
-            query = """
+            cursor.execute("""
             INSERT INTO orders (session_id, total_amount)
             VALUES (%s, %s)
-            """
-            cursor.execute(query, (session_id, total_amount))
+            """, (session_id, total_amount))
+            
             order_id = cursor.lastrowid
             
-            # Add order items
-            for item_id, quantity in items:
-                query = "SELECT price FROM menu_items WHERE id = %s"
-                cursor.execute(query, (item_id,))
+            # Add order items with extras and takeouts
+            for item in items:
+                menu_item_id = item['menu_item_id']
+                quantity = item['quantity']
+                extras = item.get('extras', [])
+                takeouts = item.get('takeouts', [])
+                
+                # Get menu item price
+                cursor.execute("SELECT price FROM menu_items WHERE id = %s", (menu_item_id,))
                 result = cursor.fetchone()
                 if result:
                     price = result['price']
-                    query = """
+                    
+                    # Insert order item
+                    cursor.execute("""
                     INSERT INTO order_items (order_id, menu_item_id, quantity, price)
                     VALUES (%s, %s, %s, %s)
-                    """
-                    cursor.execute(query, (order_id, item_id, quantity, price))
+                    """, (order_id, menu_item_id, quantity, price))
+                    
+                    order_item_id = cursor.lastrowid
+                    
+                    # Add extras
+                    for extra_id in extras:
+                        cursor.execute("SELECT price FROM item_extras WHERE id = %s", (extra_id,))
+                        extra_result = cursor.fetchone()
+                        if extra_result:
+                            extra_price = extra_result['price']
+                            cursor.execute("""
+                            INSERT INTO order_item_extras (order_item_id, extra_id, price)
+                            VALUES (%s, %s, %s)
+                            """, (order_item_id, extra_id, extra_price))
+                    
+                    # Add takeouts
+                    for takeout_id in takeouts:
+                        cursor.execute("""
+                        INSERT INTO order_item_takeouts (order_item_id, takeout_id)
+                        VALUES (%s, %s)
+                        """, (order_item_id, takeout_id))
             
             db.commit()
             return order_id
@@ -610,7 +823,7 @@ class Order:
             order.user_name = result['user_name']
             order.pc_number = result['pc_number']
 
-            # Get order items
+            # Get order items with extras and takeouts
             query = """
             SELECT oi.*, mi.name, mi.category
             FROM order_items oi
@@ -618,7 +831,34 @@ class Order:
             WHERE oi.order_id = %s
             """
             cursor.execute(query, (order.id,))
-            order.items = cursor.fetchall()
+            order_items = cursor.fetchall()
+            
+            # Process order items and add extras/takeouts
+            order.items = []
+            for item in order_items:
+                item_dict = dict(item)
+                
+                # Get extras for this order item
+                extras_query = """
+                SELECT oie.*, ie.name, ie.price
+                FROM order_item_extras oie
+                JOIN item_extras ie ON oie.extra_id = ie.id
+                WHERE oie.order_item_id = %s
+                """
+                cursor.execute(extras_query, (item['id'],))
+                item_dict['extras'] = cursor.fetchall()
+                
+                # Get takeouts for this order item
+                takeouts_query = """
+                SELECT oit.*, it.name
+                FROM order_item_takeouts oit
+                JOIN item_takeouts it ON oit.takeout_id = it.id
+                WHERE oit.order_item_id = %s
+                """
+                cursor.execute(takeouts_query, (item['id'],))
+                item_dict['takeouts'] = cursor.fetchall()
+                
+                order.items.append(item_dict)
 
             return order
         finally:
@@ -637,7 +877,7 @@ class Order:
             for result in results:
                 order = Order(**result)
                 
-                # Get order items
+                # Get order items with extras and takeouts
                 query = """
                 SELECT oi.*, mi.name, mi.category
                 FROM order_items oi
@@ -645,7 +885,34 @@ class Order:
                 WHERE oi.order_id = %s
                 """
                 cursor.execute(query, (order.id,))
-                order.items = cursor.fetchall()
+                order_items = cursor.fetchall()
+                
+                # Process order items and add extras/takeouts
+                order.items = []
+                for item in order_items:
+                    item_dict = dict(item)
+                    
+                    # Get extras for this order item
+                    extras_query = """
+                    SELECT oie.*, ie.name, ie.price
+                    FROM order_item_extras oie
+                    JOIN item_extras ie ON oie.extra_id = ie.id
+                    WHERE oie.order_item_id = %s
+                    """
+                    cursor.execute(extras_query, (item['id'],))
+                    item_dict['extras'] = cursor.fetchall()
+                    
+                    # Get takeouts for this order item
+                    takeouts_query = """
+                    SELECT oit.*, it.name
+                    FROM order_item_takeouts oit
+                    JOIN item_takeouts it ON oit.takeout_id = it.id
+                    WHERE oit.order_item_id = %s
+                    """
+                    cursor.execute(takeouts_query, (item['id'],))
+                    item_dict['takeouts'] = cursor.fetchall()
+                    
+                    order.items.append(item_dict)
                 
                 orders.append(order)
             
@@ -685,7 +952,7 @@ class Order:
                 order.user_name = result['user_name']
                 order.pc_number = result['pc_number']
                 
-                # Get order items
+                # Get order items with extras and takeouts
                 query = """
                 SELECT oi.*, mi.name, mi.category
                 FROM order_items oi
@@ -693,7 +960,34 @@ class Order:
                 WHERE oi.order_id = %s
                 """
                 cursor.execute(query, (order.id,))
-                order.items = cursor.fetchall()
+                order_items = cursor.fetchall()
+                
+                # Process order items and add extras/takeouts
+                order.items = []
+                for item in order_items:
+                    item_dict = dict(item)
+                    
+                    # Get extras for this order item
+                    extras_query = """
+                    SELECT oie.*, ie.name, ie.price
+                    FROM order_item_extras oie
+                    JOIN item_extras ie ON oie.extra_id = ie.id
+                    WHERE oie.order_item_id = %s
+                    """
+                    cursor.execute(extras_query, (item['id'],))
+                    item_dict['extras'] = cursor.fetchall()
+                    
+                    # Get takeouts for this order item
+                    takeouts_query = """
+                    SELECT oit.*, it.name
+                    FROM order_item_takeouts oit
+                    JOIN item_takeouts it ON oit.takeout_id = it.id
+                    WHERE oit.order_item_id = %s
+                    """
+                    cursor.execute(takeouts_query, (item['id'],))
+                    item_dict['takeouts'] = cursor.fetchall()
+                    
+                    order.items.append(item_dict)
                 
                 orders.append(order)
             

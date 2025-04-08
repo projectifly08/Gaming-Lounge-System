@@ -1,10 +1,11 @@
 import sys
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                            QLabel, QLineEdit, QPushButton, QStackedWidget, QMessageBox, 
-                           QFrame, QGraphicsDropShadowEffect, QDialog, QGridLayout, QScrollArea, QSpinBox, QTableWidgetItem)
+                           QFrame, QGraphicsDropShadowEffect, QDialog, QGridLayout, QScrollArea, QSpinBox, QTableWidgetItem,
+                           QCheckBox, QGroupBox)
 from PyQt5.QtCore import Qt, QTimer, QSettings
 from PyQt5.QtGui import QColor, QFont, QPixmap, QPainter, QPainterPath
-from ..database import db, User, Session, PC, Order
+from ..database import db, User, Session, PC, Order, MenuItem, MenuItemExtra, MenuItemTakeout
 from src.utils.helpers import set_background_image, verify_password
 import os
 from src.common import add_close_button
@@ -2523,7 +2524,7 @@ class LauncherMainWindow(QMainWindow):
             self.show_message("Error", f"Failed to cancel order: {str(e)}", QMessageBox.Critical)
 
     def show_order_dialog(self, item_id, name, price):
-        """Show dialog to confirm order with quantity selection."""
+        """Show dialog to confirm order with quantity selection and extras/takeouts options."""
         try:
             # For non-PC users, create a temporary user if needed
             if not self.current_user and self.current_session:
@@ -2545,10 +2546,22 @@ class LauncherMainWindow(QMainWindow):
             if not self.current_session:
                 self.show_message("Error", "No active session found.", QMessageBox.Warning)
                 return
+                
+            # Get menu item details
+            menu_item = MenuItem.get_by_id(item_id)
+            if not menu_item:
+                self.show_message("Error", "Menu item not found.", QMessageBox.Warning)
+                return
+            
+            # Get extras for this menu item
+            extras = MenuItemExtra.get_by_menu_item(item_id)
+            
+            # Get takeouts for this menu item
+            takeouts = MenuItemTakeout.get_by_menu_item(item_id)
             
             dialog = QDialog(self)
             dialog.setWindowTitle("Place Order")
-            dialog.setFixedWidth(400)
+            dialog.setFixedWidth(500)
             dialog.setStyleSheet("""
                 QDialog {
                     background-color: #1a1a2e;
@@ -2585,6 +2598,39 @@ class LauncherMainWindow(QMainWindow):
                 QPushButton:pressed {
                     background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #f57c00, stop:1 #f4511e);
                 }
+                QGroupBox {
+                    border: 1px solid rgba(255, 152, 0, 0.5);
+                    border-radius: 5px;
+                    margin-top: 15px;
+                    padding-top: 15px;
+                    color: white;
+                    font-weight: bold;
+                }
+                QGroupBox::title {
+                    subcontrol-origin: margin;
+                    subcontrol-position: top center;
+                    padding: 0 5px;
+                    background-color: #1a1a2e;
+                }
+                QCheckBox {
+                    color: white;
+                    font-size: 13px;
+                    spacing: 8px;
+                }
+                QCheckBox::indicator {
+                    width: 18px;
+                    height: 18px;
+                    border: 1px solid rgba(255, 152, 0, 0.7);
+                    border-radius: 3px;
+                    background-color: rgba(40, 40, 60, 0.7);
+                }
+                QCheckBox::indicator:checked {
+                    background-color: rgba(255, 152, 0, 0.7);
+                }
+                QScrollArea {
+                    border: none;
+                    background-color: transparent;
+                }
             """)
             
             layout = QVBoxLayout(dialog)
@@ -2592,19 +2638,26 @@ class LauncherMainWindow(QMainWindow):
             
             # Item name
             name_label = QLabel(name)
-            name_label.setFont(QFont("Segoe UI", 16, QFont.Bold))
+            name_label.setFont(QFont("Segoe UI", 18, QFont.Bold))
             name_label.setStyleSheet("color: #ff9800;")
             layout.addWidget(name_label)
             
-            # Price
-            price_label = QLabel(f"Price: ₹{float(price):.2f}")
+            # Description
+            if menu_item.description:
+                desc_label = QLabel(menu_item.description)
+                desc_label.setWordWrap(True)
+                desc_label.setStyleSheet("color: #cccccc; font-size: 13px;")
+                layout.addWidget(desc_label)
+            
+            # Base price
+            price_label = QLabel(f"Base Price: ₹{float(price):.2f}")
             price_label.setFont(QFont("Segoe UI", 14))
             layout.addWidget(price_label)
             
             # Quantity selection
             quantity_layout = QHBoxLayout()
             quantity_label = QLabel("Quantity:")
-            quantity_label.setFont(QFont("Segoe UI", 12))
+            quantity_label.setFont(QFont("Segoe UI", 14))
             quantity_layout.addWidget(quantity_label)
             
             quantity_spin = QSpinBox()
@@ -2616,18 +2669,67 @@ class LauncherMainWindow(QMainWindow):
             
             layout.addLayout(quantity_layout)
             
+            # Container for extras and takeouts
+            options_layout = QHBoxLayout()
+            
+            # Extras
+            selected_extras = []
+            extras_checkboxes = []
+            if extras:
+                extras_group = QGroupBox("Extras (Additional Cost)")
+                extras_layout = QVBoxLayout(extras_group)
+                
+                for extra in extras:
+                    checkbox = QCheckBox(f"{extra.name} (+₹{float(extra.price):.2f})")
+                    checkbox.setObjectName(f"extra_{extra.id}")
+                    extras_layout.addWidget(checkbox)
+                    extras_checkboxes.append((checkbox, extra))
+                
+                options_layout.addWidget(extras_group)
+            
+            # Takeouts
+            selected_takeouts = []
+            takeouts_checkboxes = []
+            if takeouts:
+                takeouts_group = QGroupBox("Takeouts (Remove Ingredients)")
+                takeouts_layout = QVBoxLayout(takeouts_group)
+                
+                for takeout in takeouts:
+                    checkbox = QCheckBox(takeout.name)
+                    checkbox.setObjectName(f"takeout_{takeout.id}")
+                    takeouts_layout.addWidget(checkbox)
+                    takeouts_checkboxes.append((checkbox, takeout))
+                
+                options_layout.addWidget(takeouts_group)
+            
+            if extras or takeouts:
+                layout.addLayout(options_layout)
+            
             # Total amount
-            total_label = QLabel(f"Total: ₹{float(price):.2f}")
-            total_label.setFont(QFont("Segoe UI", 14, QFont.Bold))
+            total_amount = float(price)
+            total_label = QLabel(f"Total: ₹{total_amount:.2f}")
+            total_label.setFont(QFont("Segoe UI", 16, QFont.Bold))
             total_label.setStyleSheet("color: #00c853;")
             layout.addWidget(total_label)
             
-            # Update total when quantity changes
+            # Update total when quantity or extras change
             def update_total():
-                total = float(price) * quantity_spin.value()
+                base_price = float(price)
+                quantity = quantity_spin.value()
+                
+                # Add extras cost
+                extras_cost = sum(extra.price for checkbox, extra in extras_checkboxes if checkbox.isChecked())
+                
+                # Convert decimal.Decimal to float before adding
+                extras_cost = float(extras_cost)
+                
+                total = (base_price + extras_cost) * quantity
                 total_label.setText(f"Total: ₹{total:.2f}")
             
+            # Connect signals
             quantity_spin.valueChanged.connect(update_total)
+            for checkbox, _ in extras_checkboxes:
+                checkbox.stateChanged.connect(update_total)
             
             # Buttons
             button_layout = QHBoxLayout()
@@ -2644,44 +2746,57 @@ class LauncherMainWindow(QMainWindow):
             
             if dialog.exec_() == QDialog.Accepted:
                 quantity = quantity_spin.value()
-                total_amount = float(price) * quantity
+                
+                # Get selected extras
+                selected_extras = [extra.id for checkbox, extra in extras_checkboxes if checkbox.isChecked()]
+                
+                # Get selected takeouts
+                selected_takeouts = [takeout.id for checkbox, takeout in takeouts_checkboxes if checkbox.isChecked()]
+                
+                # Calculate total with extras
+                extras_cost = sum(extra.price for checkbox, extra in extras_checkboxes if checkbox.isChecked())
+                # Convert decimal.Decimal to float
+                extras_cost = float(extras_cost)
+                total_amount = (float(price) + extras_cost) * quantity
                 
                 # Create order in database
                 cursor = db.get_cursor()
                 try:
-                    # Create the order
-                    cursor.execute("""
-                        INSERT INTO orders (session_id, status, total_amount)
-                        VALUES (%s, %s, %s)
-                    """, (
-                        self.current_session['id'],
-                        'pending',
-                        total_amount
-                    ))
+                    # Create the order with extras and takeouts
+                    order_items = [{
+                        'menu_item_id': item_id, 
+                        'quantity': quantity,
+                        'extras': selected_extras,
+                        'takeouts': selected_takeouts
+                    }]
                     
-                    order_id = cursor.lastrowid
+                    Order.create(self.current_session['id'], order_items)
                     
-                    # Add order item
-                    cursor.execute("""
-                        INSERT INTO order_items (order_id, menu_item_id, quantity, price)
-                        VALUES (%s, %s, %s, %s)
-                    """, (
-                        order_id,
-                        item_id,
-                        quantity,
-                        price
-                    ))
+                    # Build order description for message
+                    order_desc = f"{quantity} x {name}"
                     
-                    db.commit()
+                    # Add extras to description
+                    if selected_extras:
+                        extras_names = [extra.name for checkbox, extra in extras_checkboxes if checkbox.isChecked()]
+                        order_desc += f"\nExtras: {', '.join(extras_names)}"
+                    
+                    # Add takeouts to description
+                    if selected_takeouts:
+                        takeouts_names = [takeout.name for checkbox, takeout in takeouts_checkboxes if checkbox.isChecked()]
+                        order_desc += f"\nTakeouts: {', '.join(takeouts_names)}"
                     
                     # Show success message
                     self.show_message(
                         "Order Placed",
-                        f"Your order for {quantity} x {name} has been placed!\n\n"
+                        f"Your order has been placed!\n\n"
+                        f"{order_desc}\n\n"
                         f"Total: ₹{total_amount:.2f}\n"
                         "Your order status is now 'pending'. Staff will deliver your order shortly.",
                         QMessageBox.Information
                     )
+                    
+                    # Refresh orders display
+                    self.load_user_orders()
                     
                 except Exception as e:
                     db.rollback()

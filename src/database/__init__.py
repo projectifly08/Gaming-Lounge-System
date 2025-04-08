@@ -1,7 +1,7 @@
 from .db_connection import db
-from .models import User, PC, Session, MenuItem, Order, Game
+from .models import User, PC, Session, MenuItem, Order, Game, MenuItemTakeout, MenuItemExtra
 
-__all__ = ['db', 'User', 'PC', 'Session', 'MenuItem', 'Order', 'Game']
+__all__ = ['db', 'User', 'PC', 'Session', 'MenuItem', 'Order', 'Game', 'MenuItemTakeout', 'MenuItemExtra']
 
 def init_db():
     """Initialize the database with required tables."""

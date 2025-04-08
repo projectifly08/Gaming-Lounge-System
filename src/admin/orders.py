@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, 
     QFrame, QSizePolicy, QSpacerItem, QTableWidgetItem, QMessageBox,
     QDialog, QComboBox, QLineEdit, QPushButton, QListWidget, QListWidgetItem,
-    QDialogButtonBox
+    QDialogButtonBox, QHeaderView
 )
 from PyQt5.QtCore import Qt, QTimer, QDateTime
 from PyQt5.QtGui import QFont, QColor, QIcon
@@ -82,8 +82,8 @@ class OrderDetailsDialog(QDialog):
         layout.addWidget(items_header)
         
         items_table = StyledTable()
-        items_table.setColumnCount(4)
-        items_table.setHorizontalHeaderLabels(["Item", "Category", "Quantity", "Price"])
+        items_table.setColumnCount(5)
+        items_table.setHorizontalHeaderLabels(["Item", "Category", "Quantity", "Extras/Takeouts", "Price"])
         
         # Add items to table
         for i, item in enumerate(self.order.items):
@@ -93,9 +93,48 @@ class OrderDetailsDialog(QDialog):
             items_table.setItem(i, 1, QTableWidgetItem(item['category'].capitalize()))
             items_table.setItem(i, 2, QTableWidgetItem(str(item['quantity'])))
             
+            # Display extras and takeouts
+            extras_takeouts_text = ""
+            
+            # Add extras with prices if any
+            if 'extras' in item and item['extras']:
+                extras_names = [f"{extra['name']} (+{format_currency(extra['price'])})" for extra in item['extras']]
+                extras_takeouts_text += "Extras: " + ", ".join(extras_names)
+            
+            # Add takeouts if any
+            if 'takeouts' in item and item['takeouts']:
+                if extras_takeouts_text:
+                    extras_takeouts_text += "\n"
+                takeouts_names = [takeout['name'] for takeout in item['takeouts']]
+                extras_takeouts_text += "Takeouts: " + ", ".join(takeouts_names)
+            
+            # If no extras or takeouts
+            if not extras_takeouts_text:
+                extras_takeouts_text = "-"
+                
+            extras_item = QTableWidgetItem(extras_takeouts_text)
+            extras_item.setToolTip(extras_takeouts_text)  # Add tooltip to show full text on hover
+            items_table.setItem(i, 3, extras_item)
+            
             # Calculate item total
             item_total = item['price'] * item['quantity']
-            items_table.setItem(i, 3, QTableWidgetItem(format_currency(item_total)))
+            
+            # Add extras cost if any
+            if 'extras' in item and item['extras']:
+                for extra in item['extras']:
+                    item_total += extra['price'] * item['quantity']
+            
+            items_table.setItem(i, 4, QTableWidgetItem(format_currency(item_total)))
+        
+        # Adjust the column widths
+        items_table.horizontalHeader().setStretchLastSection(False)
+        items_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)  # Item name stretches
+        items_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)  # Extras/Takeouts stretches
+        
+        # Enable text wrapping and adjust row heights
+        items_table.setWordWrap(True)
+        for i in range(items_table.rowCount()):
+            items_table.resizeRowToContents(i)
         
         layout.addWidget(items_table)
         
@@ -324,9 +363,27 @@ class OrdersTab(QWidget):
             order_time = order.order_time.strftime("%H:%M:%S")
             self.pending_table.setItem(i, 3, QTableWidgetItem(order_time))
             
-            # Items
-            items_text = ", ".join([f"{item['quantity']} x {item['name']}" for item in order.items])
-            self.pending_table.setItem(i, 4, QTableWidgetItem(items_text))
+            # Items with extras and takeouts
+            items_text_parts = []
+            for item in order.items:
+                item_text = f"{item['quantity']} x {item['name']}"
+                
+                # Add extras summary if any
+                if 'extras' in item and item['extras']:
+                    extras_count = len(item['extras'])
+                    item_text += f" (+{extras_count} extras)"
+                
+                # Add takeouts summary if any
+                if 'takeouts' in item and item['takeouts']:
+                    takeouts_count = len(item['takeouts'])
+                    item_text += f" (-{takeouts_count} takeouts)"
+                
+                items_text_parts.append(item_text)
+            
+            items_text = ", ".join(items_text_parts)
+            items_item = QTableWidgetItem(items_text)
+            items_item.setToolTip(items_text)  # Add tooltip to show full text on hover
+            self.pending_table.setItem(i, 4, items_item)
             
             # Status
             status_item = QTableWidgetItem(order.status.capitalize())
@@ -340,6 +397,11 @@ class OrdersTab(QWidget):
                 status_item.setForeground(QColor('#e67e22'))  # Orange
             
             self.pending_table.setItem(i, 5, status_item)
+        
+        # Enable text wrapping and auto-adjust row heights
+        self.pending_table.setWordWrap(True)
+        for i in range(self.pending_table.rowCount()):
+            self.pending_table.resizeRowToContents(i)
     
     def refresh_order_history(self):
         """Refresh order history table."""

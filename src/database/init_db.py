@@ -201,6 +201,52 @@ def create_tables(cursor):
         )
         """)
         
+        # Menu item extras table
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS item_extras (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            menu_item_id INT NOT NULL,
+            name VARCHAR(100) NOT NULL,
+            price DECIMAL(10, 2) NOT NULL,
+            available BOOLEAN DEFAULT TRUE,
+            FOREIGN KEY (menu_item_id) REFERENCES menu_items(id) ON DELETE CASCADE
+        )
+        """)
+        
+        # Menu item takeouts table
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS item_takeouts (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            menu_item_id INT NOT NULL,
+            name VARCHAR(100) NOT NULL,
+            available BOOLEAN DEFAULT TRUE,
+            FOREIGN KEY (menu_item_id) REFERENCES menu_items(id) ON DELETE CASCADE
+        )
+        """)
+        
+        # Order item extras table - to store selected extras for an order
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS order_item_extras (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            order_item_id INT NOT NULL,
+            extra_id INT NOT NULL,
+            price DECIMAL(10, 2) NOT NULL,
+            FOREIGN KEY (order_item_id) REFERENCES order_items(id) ON DELETE CASCADE,
+            FOREIGN KEY (extra_id) REFERENCES item_extras(id) ON DELETE CASCADE
+        )
+        """)
+        
+        # Order item takeouts table - to store selected takeouts for an order
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS order_item_takeouts (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            order_item_id INT NOT NULL,
+            takeout_id INT NOT NULL,
+            FOREIGN KEY (order_item_id) REFERENCES order_items(id) ON DELETE CASCADE,
+            FOREIGN KEY (takeout_id) REFERENCES item_takeouts(id) ON DELETE CASCADE
+        )
+        """)
+        
         print("All tables created successfully.")
     except mysql.connector.Error as err:
         print(f"\nERROR creating tables: {err}")

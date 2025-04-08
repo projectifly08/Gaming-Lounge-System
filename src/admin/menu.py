@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, 
     QFrame, QSizePolicy, QSpacerItem, QTableWidgetItem, QMessageBox,
     QDialog, QComboBox, QLineEdit, QPushButton, QListWidget, QListWidgetItem,
-    QFileDialog, QCheckBox, QHeaderView
+    QFileDialog, QCheckBox, QHeaderView, QTabWidget, QScrollArea
 )
 from PyQt5.QtCore import Qt, QTimer, QDateTime
 from PyQt5.QtGui import QFont, QColor, QIcon, QPixmap
@@ -12,7 +12,7 @@ from src.common import (
     StyledComboBox, PrimaryButton, SecondaryButton, DangerButton, SuccessButton,
     show_message, confirm_action, create_spacer
 )
-from src.database import db, MenuItem
+from src.database import db, MenuItem, MenuItemExtra, MenuItemTakeout
 from src.utils.helpers import format_currency
 
 class MenuItemDialog(QDialog):
@@ -42,6 +42,37 @@ class MenuItemDialog(QDialog):
     def init_ui(self):
         """Initialize the user interface."""
         layout = QVBoxLayout(self)
+        layout.setSpacing(15)
+        
+        # Create tabs
+        tabs = QTabWidget()
+        tabs.setStyleSheet("""
+            QTabWidget::pane {
+                border: 1px solid #cccccc;
+                border-radius: 4px;
+                padding: 10px;
+            }
+            QTabBar::tab {
+                background-color: #f2f2f2;
+                border: 1px solid #cccccc;
+                border-bottom: none;
+                border-top-left-radius: 4px;
+                border-top-right-radius: 4px;
+                padding: 8px 12px;
+                margin-right: 2px;
+            }
+            QTabBar::tab:selected {
+                background-color: white;
+                border-bottom: 1px solid white;
+            }
+            QTabBar::tab:hover:!selected {
+                background-color: #e6e6e6;
+            }
+        """)
+        
+        # Basic info tab
+        basic_tab = QWidget()
+        basic_layout = QVBoxLayout(basic_tab)
         
         # Form fields
         form_grid = QGridLayout()
@@ -101,7 +132,65 @@ class MenuItemDialog(QDialog):
         form_grid.addWidget(image_label, 5, 0)
         form_grid.addLayout(image_layout, 5, 1)
         
-        layout.addLayout(form_grid)
+        basic_layout.addLayout(form_grid)
+        
+        # Extras tab
+        extras_tab = QWidget()
+        extras_layout = QVBoxLayout(extras_tab)
+        
+        extras_header = QHBoxLayout()
+        extras_title = QLabel("Extras (Additional Options with Extra Cost)")
+        extras_title.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        extras_header.addWidget(extras_title)
+        
+        add_extra_button = PrimaryButton("Add Extra")
+        add_extra_button.clicked.connect(self.add_extra)
+        extras_header.addWidget(add_extra_button)
+        
+        extras_layout.addLayout(extras_header)
+        
+        # Table for extras
+        self.extras_table = StyledTable()
+        self.extras_table.setColumnCount(4)
+        self.extras_table.setHorizontalHeaderLabels(["Name", "Price", "Available", "Actions"])
+        self.extras_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        self.extras_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        self.extras_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        self.extras_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        
+        extras_layout.addWidget(self.extras_table)
+        
+        # Takeouts tab
+        takeouts_tab = QWidget()
+        takeouts_layout = QVBoxLayout(takeouts_tab)
+        
+        takeouts_header = QHBoxLayout()
+        takeouts_title = QLabel("Takeouts (Ingredients customer can remove)")
+        takeouts_title.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        takeouts_header.addWidget(takeouts_title)
+        
+        add_takeout_button = PrimaryButton("Add Takeout")
+        add_takeout_button.clicked.connect(self.add_takeout)
+        takeouts_header.addWidget(add_takeout_button)
+        
+        takeouts_layout.addLayout(takeouts_header)
+        
+        # Table for takeouts
+        self.takeouts_table = StyledTable()
+        self.takeouts_table.setColumnCount(3)
+        self.takeouts_table.setHorizontalHeaderLabels(["Name", "Available", "Actions"])
+        self.takeouts_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        self.takeouts_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        self.takeouts_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        
+        takeouts_layout.addWidget(self.takeouts_table)
+        
+        # Add tabs to tab widget
+        tabs.addTab(basic_tab, "Basic Info")
+        tabs.addTab(extras_tab, "Extras")
+        tabs.addTab(takeouts_tab, "Takeouts")
+        
+        layout.addWidget(tabs)
         
         # Buttons
         button_layout = QHBoxLayout()
@@ -132,7 +221,56 @@ class MenuItemDialog(QDialog):
             
             if self.item.image_path:
                 self.image_path_input.setText(self.item.image_path)
-    
+                
+            # Load extras and takeouts if item exists
+            self.load_extras()
+            self.load_takeouts()
+            
+    def load_extras(self):
+        """Load extras for the current menu item."""
+        if not self.item:
+            return
+            
+        # Clear the table
+        self.extras_table.setRowCount(0)
+        
+        # Get extras for this menu item
+        extras = MenuItemExtra.get_by_menu_item(self.item.id)
+        
+        # Add to table
+        for i, extra in enumerate(extras):
+            self.extras_table.insertRow(i)
+            
+            # Name
+            self.extras_table.setItem(i, 0, QTableWidgetItem(extra.name))
+            
+            # Price
+            self.extras_table.setItem(i, 1, QTableWidgetItem(format_currency(extra.price)))
+            
+            # Available
+            available_item = QTableWidgetItem("Yes" if extra.available else "No")
+            if not extra.available:
+                available_item.setForeground(QColor('#e74c3c'))  # Red
+            self.extras_table.setItem(i, 2, available_item)
+            
+            # Actions
+            actions_widget = QWidget()
+            actions_layout = QHBoxLayout(actions_widget)
+            actions_layout.setContentsMargins(2, 0, 2, 0)
+            actions_layout.setSpacing(2)
+            
+            # Edit button
+            edit_button = SecondaryButton("Edit")
+            edit_button.clicked.connect(lambda _, extra_id=extra.id: self.edit_extra(extra_id))
+            actions_layout.addWidget(edit_button)
+            
+            # Delete button
+            delete_button = DangerButton("Delete")
+            delete_button.clicked.connect(lambda _, extra_id=extra.id: self.delete_extra(extra_id))
+            actions_layout.addWidget(delete_button)
+            
+            self.extras_table.setCellWidget(i, 3, actions_widget)
+            
     def browse_image(self):
         """Browse for an image file."""
         file_path, _ = QFileDialog.getOpenFileName(
@@ -141,9 +279,335 @@ class MenuItemDialog(QDialog):
         
         if file_path:
             self.image_path_input.setText(file_path)
+            
+    def load_takeouts(self):
+        """Load takeouts for the current menu item."""
+        if not self.item:
+            return
+            
+        # Clear the table
+        self.takeouts_table.setRowCount(0)
+        
+        # Get takeouts for this menu item
+        takeouts = MenuItemTakeout.get_by_menu_item(self.item.id)
+        
+        # Add to table
+        for i, takeout in enumerate(takeouts):
+            self.takeouts_table.insertRow(i)
+            
+            # Name
+            self.takeouts_table.setItem(i, 0, QTableWidgetItem(takeout.name))
+            
+            # Available
+            available_item = QTableWidgetItem("Yes" if takeout.available else "No")
+            if not takeout.available:
+                available_item.setForeground(QColor('#e74c3c'))  # Red
+            self.takeouts_table.setItem(i, 1, available_item)
+            
+            # Actions
+            actions_widget = QWidget()
+            actions_layout = QHBoxLayout(actions_widget)
+            actions_layout.setContentsMargins(2, 0, 2, 0)
+            actions_layout.setSpacing(2)
+            
+            # Edit button
+            edit_button = SecondaryButton("Edit")
+            edit_button.clicked.connect(lambda _, takeout_id=takeout.id: self.edit_takeout(takeout_id))
+            actions_layout.addWidget(edit_button)
+            
+            # Delete button
+            delete_button = DangerButton("Delete")
+            delete_button.clicked.connect(lambda _, takeout_id=takeout.id: self.delete_takeout(takeout_id))
+            actions_layout.addWidget(delete_button)
+            
+            self.takeouts_table.setCellWidget(i, 2, actions_widget)
+            
+    def add_extra(self):
+        """Add a new extra option to the menu item."""
+        if not self.item:
+            show_message(self, "Error", "Please save the menu item first before adding extras.", QMessageBox.Warning)
+            return
+            
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Add Extra Option")
+        dialog.setMinimumWidth(300)
+        
+        layout = QVBoxLayout(dialog)
+        
+        # Name
+        name_label = QLabel("Name:")
+        name_input = StyledLineEdit(placeholder="Enter extra name")
+        layout.addWidget(name_label)
+        layout.addWidget(name_input)
+        
+        # Price
+        price_label = QLabel("Price:")
+        price_input = StyledLineEdit(placeholder="Enter price (e.g. 1.99)")
+        layout.addWidget(price_label)
+        layout.addWidget(price_input)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        cancel_button = SecondaryButton("Cancel")
+        cancel_button.clicked.connect(dialog.reject)
+        
+        save_button = PrimaryButton("Save")
+        save_button.clicked.connect(dialog.accept)
+        
+        button_layout.addWidget(cancel_button)
+        button_layout.addWidget(save_button)
+        
+        layout.addLayout(button_layout)
+        
+        if dialog.exec_() == QDialog.Accepted:
+            name = name_input.text().strip()
+            price_text = price_input.text().strip()
+            
+            if not name:
+                show_message(self, "Error", "Please enter a name for the extra.", QMessageBox.Warning)
+                return
+            
+            try:
+                price = float(price_text)
+                if price <= 0:
+                    raise ValueError("Price must be positive")
+            except ValueError:
+                show_message(self, "Error", "Please enter a valid price.", QMessageBox.Warning)
+                return
+                
+            try:
+                # Create the extra
+                MenuItemExtra.create(self.item.id, name, price)
+                
+                # Refresh the extras table
+                self.load_extras()
+                
+                show_message(self, "Success", "Extra option added successfully.")
+            except Exception as e:
+                show_message(self, "Error", f"Failed to add extra: {str(e)}", QMessageBox.Critical)
+                
+    def edit_extra(self, extra_id):
+        """Edit an existing extra option."""
+        extra = MenuItemExtra.get_by_id(extra_id)
+        if not extra:
+            show_message(self, "Error", "Extra option not found.", QMessageBox.Critical)
+            return
+            
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Edit Extra Option")
+        dialog.setMinimumWidth(300)
+        
+        layout = QVBoxLayout(dialog)
+        
+        # Name
+        name_label = QLabel("Name:")
+        name_input = StyledLineEdit(placeholder="Enter extra name")
+        name_input.setText(extra.name)
+        layout.addWidget(name_label)
+        layout.addWidget(name_input)
+        
+        # Price
+        price_label = QLabel("Price:")
+        price_input = StyledLineEdit(placeholder="Enter price (e.g. 1.99)")
+        price_input.setText(str(extra.price))
+        layout.addWidget(price_label)
+        layout.addWidget(price_input)
+        
+        # Available
+        available_layout = QHBoxLayout()
+        available_label = QLabel("Available:")
+        available_checkbox = QCheckBox()
+        available_checkbox.setChecked(extra.available)
+        available_layout.addWidget(available_label)
+        available_layout.addWidget(available_checkbox)
+        layout.addLayout(available_layout)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        cancel_button = SecondaryButton("Cancel")
+        cancel_button.clicked.connect(dialog.reject)
+        
+        save_button = PrimaryButton("Save")
+        save_button.clicked.connect(dialog.accept)
+        
+        button_layout.addWidget(cancel_button)
+        button_layout.addWidget(save_button)
+        
+        layout.addLayout(button_layout)
+        
+        if dialog.exec_() == QDialog.Accepted:
+            name = name_input.text().strip()
+            price_text = price_input.text().strip()
+            available = available_checkbox.isChecked()
+            
+            if not name:
+                show_message(self, "Error", "Please enter a name for the extra.", QMessageBox.Warning)
+                return
+            
+            try:
+                price = float(price_text)
+                if price <= 0:
+                    raise ValueError("Price must be positive")
+            except ValueError:
+                show_message(self, "Error", "Please enter a valid price.", QMessageBox.Warning)
+                return
+                
+            try:
+                # Update the extra
+                extra.name = name
+                extra.price = price
+                extra.available = available
+                extra.update()
+                
+                # Refresh the extras table
+                self.load_extras()
+                
+                show_message(self, "Success", "Extra option updated successfully.")
+            except Exception as e:
+                show_message(self, "Error", f"Failed to update extra: {str(e)}", QMessageBox.Critical)
+                
+    def delete_extra(self, extra_id):
+        """Delete an extra option."""
+        if not confirm_action("Delete Extra", "Are you sure you want to delete this extra option?", self):
+            return
+            
+        try:
+            extra = MenuItemExtra.get_by_id(extra_id)
+            if extra:
+                extra.delete()
+                self.load_extras()
+                show_message(self, "Success", "Extra option deleted successfully.")
+        except Exception as e:
+            show_message(self, "Error", f"Failed to delete extra: {str(e)}", QMessageBox.Critical)
+            
+    def add_takeout(self):
+        """Add a new takeout option to the menu item."""
+        if not self.item:
+            show_message(self, "Error", "Please save the menu item first before adding takeouts.", QMessageBox.Warning)
+            return
+            
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Add Takeout Option")
+        dialog.setMinimumWidth(300)
+        
+        layout = QVBoxLayout(dialog)
+        
+        # Name
+        name_label = QLabel("Name:")
+        name_input = StyledLineEdit(placeholder="Enter takeout name (e.g. 'No onions')")
+        layout.addWidget(name_label)
+        layout.addWidget(name_input)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        cancel_button = SecondaryButton("Cancel")
+        cancel_button.clicked.connect(dialog.reject)
+        
+        save_button = PrimaryButton("Save")
+        save_button.clicked.connect(dialog.accept)
+        
+        button_layout.addWidget(cancel_button)
+        button_layout.addWidget(save_button)
+        
+        layout.addLayout(button_layout)
+        
+        if dialog.exec_() == QDialog.Accepted:
+            name = name_input.text().strip()
+            
+            if not name:
+                show_message(self, "Error", "Please enter a name for the takeout.", QMessageBox.Warning)
+                return
+                
+            try:
+                # Create the takeout
+                MenuItemTakeout.create(self.item.id, name)
+                
+                # Refresh the takeouts table
+                self.load_takeouts()
+                
+                show_message(self, "Success", "Takeout option added successfully.")
+            except Exception as e:
+                show_message(self, "Error", f"Failed to add takeout: {str(e)}", QMessageBox.Critical)
+                
+    def edit_takeout(self, takeout_id):
+        """Edit an existing takeout option."""
+        takeout = MenuItemTakeout.get_by_id(takeout_id)
+        if not takeout:
+            show_message(self, "Error", "Takeout option not found.", QMessageBox.Critical)
+            return
+            
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Edit Takeout Option")
+        dialog.setMinimumWidth(300)
+        
+        layout = QVBoxLayout(dialog)
+        
+        # Name
+        name_label = QLabel("Name:")
+        name_input = StyledLineEdit(placeholder="Enter takeout name")
+        name_input.setText(takeout.name)
+        layout.addWidget(name_label)
+        layout.addWidget(name_input)
+        
+        # Available
+        available_layout = QHBoxLayout()
+        available_label = QLabel("Available:")
+        available_checkbox = QCheckBox()
+        available_checkbox.setChecked(takeout.available)
+        available_layout.addWidget(available_label)
+        available_layout.addWidget(available_checkbox)
+        layout.addLayout(available_layout)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        cancel_button = SecondaryButton("Cancel")
+        cancel_button.clicked.connect(dialog.reject)
+        
+        save_button = PrimaryButton("Save")
+        save_button.clicked.connect(dialog.accept)
+        
+        button_layout.addWidget(cancel_button)
+        button_layout.addWidget(save_button)
+        
+        layout.addLayout(button_layout)
+        
+        if dialog.exec_() == QDialog.Accepted:
+            name = name_input.text().strip()
+            available = available_checkbox.isChecked()
+            
+            if not name:
+                show_message(self, "Error", "Please enter a name for the takeout.", QMessageBox.Warning)
+                return
+                
+            try:
+                # Update the takeout
+                takeout.name = name
+                takeout.available = available
+                takeout.update()
+                
+                # Refresh the takeouts table
+                self.load_takeouts()
+                
+                show_message(self, "Success", "Takeout option updated successfully.")
+            except Exception as e:
+                show_message(self, "Error", f"Failed to update takeout: {str(e)}", QMessageBox.Critical)
+                
+    def delete_takeout(self, takeout_id):
+        """Delete a takeout option."""
+        if not confirm_action("Delete Takeout", "Are you sure you want to delete this takeout option?", self):
+            return
+            
+        try:
+            takeout = MenuItemTakeout.get_by_id(takeout_id)
+            if takeout:
+                takeout.delete()
+                self.load_takeouts()
+                show_message(self, "Success", "Takeout option deleted successfully.")
+        except Exception as e:
+            show_message(self, "Error", f"Failed to delete takeout: {str(e)}", QMessageBox.Critical)
     
     def save_item(self):
-        """Save the menu item."""
+        """Save the menu item and its extras/takeouts."""
         # Validate form
         name = self.name_input.text().strip()
         description = self.description_input.text().strip()
@@ -184,7 +648,12 @@ class MenuItemDialog(QDialog):
                     name, description, price, category, 
                     image_path if image_path else None
                 )
+                self.item = MenuItem.get_by_id(item_id)
                 show_message(self, "Success", "Menu item added successfully.")
+                
+                # Refresh extras and takeouts for the new item
+                self.load_extras()
+                self.load_takeouts()
             
             self.accept()
         except Exception as e:
