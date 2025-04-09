@@ -347,11 +347,12 @@ class AdminMainWindow(QMainWindow):
     
     def setup_refresh_timer(self):
         """Set up a timer to refresh data periodically."""
-        from PyQt5.QtCore import QTimer
+        pass
+        # from PyQt5.QtCore import QTimer
         
-        self.refresh_timer = QTimer(self)
-        self.refresh_timer.timeout.connect(lambda: self.refresh_data())
-        self.refresh_timer.start(5000)  # Refresh every 5 seconds
+        # self.refresh_timer = QTimer(self)
+        # self.refresh_timer.timeout.connect(lambda: self.refresh_data())
+        # self.refresh_timer.start(5000)  # Refresh every 5 seconds
     
     def refresh_data(self):
         """Refresh data in all tabs."""

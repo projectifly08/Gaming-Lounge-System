@@ -370,12 +370,27 @@ class DashboardTab(QWidget):
         # Add PC widgets to grid
         row, col = 0, 0
         max_cols = 3  # Fewer PCs per row for the sidebar
+
+        # Get user name for each PC
+        cursor = db.get_cursor()
+        try:
+            # Get active sessions with user names
+            query = """
+            SELECT p.pc_number, u.name
+            FROM pcs p
+            LEFT JOIN sessions s ON p.id = s.pc_id AND s.status = 'active'
+            LEFT JOIN users u ON s.user_id = u.id
+            """
+            cursor.execute(query)
+            pc_users = {row['pc_number']: row['name'] for row in cursor.fetchall()}
+        finally:
+            cursor.close()
         
         for pc in pcs:
             # Create a smaller PC status widget
-            pc_widget = PCStatusWidget(pc.pc_number, pc.status)
+            pc_widget = PCStatusWidget(pc.pc_number, pc.status, pc_users.get(pc.pc_number, ""))
             pc_widget.setFixedSize(60, 60)  # Smaller size for sidebar
-            pc_widget.clicked.connect(self.on_pc_clicked)
+            # pc_widget.clicked.connect(self.on_pc_clicked)
             
             self.pc_grid.addWidget(pc_widget, row, col)
             
@@ -472,17 +487,17 @@ class DashboardTab(QWidget):
         finally:
             cursor.close()
     
-    def on_pc_clicked(self, pc_number):
-        """Handle PC widget click."""
-        # Switch to Sessions tab and focus on the selected PC
-        main_window = self.window()
-        if main_window:
-            tab_widget = main_window.findChild(QTabWidget)
-            if tab_widget:
-                # Switch to Sessions tab (index 2)
-                tab_widget.setCurrentIndex(2)
+    # def on_pc_clicked(self, pc_number):
+    #     """Handle PC widget click."""
+    #     # Switch to Sessions tab and focus on the selected PC
+    #     main_window = self.window()
+    #     if main_window:
+    #         tab_widget = main_window.findChild(QTabWidget)
+    #         if tab_widget:
+    #             # Switch to Sessions tab (index 2)
+    #             tab_widget.setCurrentIndex(2)
                 
-                # Focus on the selected PC
-                sessions_tab = tab_widget.widget(2)
-                if hasattr(sessions_tab, 'select_pc'):
-                    sessions_tab.select_pc(pc_number) 
+    #             # Focus on the selected PC
+    #             sessions_tab = tab_widget.widget(2)
+    #             if hasattr(sessions_tab, 'select_pc'):
+    #                 sessions_tab.select_pc(pc_number) 

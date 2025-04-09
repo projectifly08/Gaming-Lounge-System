@@ -529,9 +529,9 @@ class LauncherMainWindow(QMainWindow):
         self.timer.timeout.connect(self.update_timer)
         
         # Add orders refresh timer
-        self.orders_refresh_timer = QTimer()
+        # self.orders_refresh_timer = QTimer()
         
-        self.orders_refresh_timer.timeout.connect(lambda: self.load_user_orders())
+        # self.orders_refresh_timer.timeout.connect(lambda: self.load_user_orders())
         
         # Exit password tracking
         self.exit_password_attempts = 0
@@ -866,7 +866,7 @@ class LauncherMainWindow(QMainWindow):
             self.load_user_orders()
             
             # Start orders refresh timer
-            self.orders_refresh_timer.start(60000)  # Refresh every minute
+            # self.orders_refresh_timer.start(60000)  # Refresh every minute
             
             # Show the food menu page
             self.stacked_widget.setCurrentWidget(self.food_menu_page)
@@ -1922,8 +1922,8 @@ class LauncherMainWindow(QMainWindow):
         """End the current session and log out the user when time expires."""
         try:
             # Stop the orders refresh timer
-            if self.orders_refresh_timer.isActive():
-                self.orders_refresh_timer.stop()
+            # if self.orders_refresh_timer.isActive():
+            #     self.orders_refresh_timer.stop()
             
             # Update session status in database
             if self.current_session:
@@ -2217,7 +2217,7 @@ class LauncherMainWindow(QMainWindow):
         self.load_user_orders()
         
         # Start orders refresh timer
-        self.orders_refresh_timer.start(60000)  # Refresh every minute
+        # self.orders_refresh_timer.start(60000)  # Refresh every minute
         
         # Show the food menu page
         self.stacked_widget.setCurrentWidget(self.food_menu_page)

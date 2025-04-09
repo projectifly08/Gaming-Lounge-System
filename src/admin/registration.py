@@ -231,7 +231,7 @@ class RegistrationTab(QWidget):
         
         # Add PCs to combo box
         for pc in available_pcs:
-            self.pc_combo.addItem(f"PC {pc.pc_number}", pc.id)
+            self.pc_combo.addItem(f"PC {pc.pc_number}", pc.pc_number)
     
     def refresh_pc_grid(self):
         """Refresh PC grid."""
@@ -248,9 +248,24 @@ class RegistrationTab(QWidget):
         # Add PC widgets to grid
         row, col = 0, 0
         max_cols = 4  # 4 PCs per row
+
+        # Get user name for each PC
+        cursor = db.get_cursor()
+        try:
+            # Get active sessions with user names
+            query = """
+            SELECT p.pc_number, u.name
+            FROM pcs p
+            LEFT JOIN sessions s ON p.id = s.pc_id AND s.status = 'active'
+            LEFT JOIN users u ON s.user_id = u.id
+            """
+            cursor.execute(query)
+            pc_users = {row['pc_number']: row['name'] for row in cursor.fetchall()}
+        finally:
+            cursor.close()
         
         for pc in pcs:
-            pc_widget = PCStatusWidget(pc.pc_number, pc.status)
+            pc_widget = PCStatusWidget(pc.pc_number, pc.status, pc_users.get(pc.pc_number, ""))
             pc_widget.clicked.connect(self.on_pc_clicked)
             
             self.pc_grid.addWidget(pc_widget, row, col)
@@ -356,6 +371,12 @@ class RegistrationTab(QWidget):
             duration = self.duration_combo.currentData()
             payment_method = self.payment_combo.currentText()
             pc_id = self.pc_combo.currentData()
+
+            print(pc_id)
+
+            if pc_id == 999:
+                show_message(self, "Error", "PC 999 is invalid and cannot be used. Please select a valid PC.", QMessageBox.Warning)
+                return
             
             # Calculate price
             price = calculate_price_for_duration(duration)

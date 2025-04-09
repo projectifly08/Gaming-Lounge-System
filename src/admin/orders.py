@@ -30,7 +30,7 @@ class OrderDetailsDialog(QDialog):
             return
         
         self.setWindowTitle(f"Order #{order_id} Details")
-        self.setMinimumWidth(500)
+        self.setMinimumWidth(700)
         
         self.init_ui()
     
@@ -131,8 +131,18 @@ class OrderDetailsDialog(QDialog):
         items_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)  # Item name stretches
         items_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)  # Extras/Takeouts stretches
         
+        # Set fixed width for other columns to give more space to the stretching columns
+        items_table.setColumnWidth(1, 100)  # Category
+        items_table.setColumnWidth(2, 80)   # Quantity
+        items_table.setColumnWidth(4, 100)  # Price
+        
+        # Set minimum width for Extras/Takeouts column
+        items_table.setColumnWidth(3, 250)  # Ensure a minimum width for Extras/Takeouts
+        
         # Enable text wrapping and adjust row heights
         items_table.setWordWrap(True)
+        
+        # Use taller row heights for better visibility
         for i in range(items_table.rowCount()):
             items_table.resizeRowToContents(i)
         
@@ -226,9 +236,9 @@ class OrdersTab(QWidget):
         self.refresh_data()
         
         # Set up timer for auto-refresh
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(lambda: self.refresh_data())
-        self.timer.start(5000)  # Refresh every 5 seconds
+        # self.timer = QTimer(self)
+        # self.timer.timeout.connect(lambda: self.refresh_data())
+        # self.timer.start(5000)  # Refresh every 5 seconds
     
     def init_ui(self):
         """Initialize the user interface."""

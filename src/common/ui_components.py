@@ -381,10 +381,11 @@ class PCStatusWidget(QWidget):
     
     clicked = pyqtSignal(int)
     
-    def __init__(self, pc_number, status="available", parent=None):
+    def __init__(self, pc_number, status="available", user_name="", parent=None):
         super().__init__(parent)
         self.pc_number = pc_number
         self.status = status
+        self.user_name = user_name
         
         # Default size, can be overridden
         self.setFixedSize(100, 100)
@@ -450,6 +451,7 @@ class PCStatusWidget(QWidget):
                 }
             """)
         elif self.status == "occupied":
+            self.setToolTip(self.user_name)
             # Enhanced red with better styling
             self.setStyleSheet("""
                 QWidget {

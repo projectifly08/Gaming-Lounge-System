@@ -349,7 +349,7 @@ class AdminLoginWindow(QMainWindow):
         
         # Use a timer to delay the transition
         from PyQt5.QtCore import QTimer
-        QTimer.singleShot(1000, self.proceed_to_admin_panel)
+        QTimer.singleShot(0, self.proceed_to_admin_panel)
     
     def proceed_to_admin_panel(self):
         """Proceed to the admin panel after animation."""
