@@ -293,10 +293,10 @@ class Session:
             query = """
             INSERT INTO sessions (user_id, pc_id, duration_minutes, payment_method, payment_amount, 
                                  start_time, end_time, status)
-            VALUES (%s, %s, %s, %s, %s, NOW(), DATE_ADD(NOW(), INTERVAL %s MINUTE), 'active')
+            VALUES (%s, %s, %s, %s, %s, %s, DATE_ADD(%s, INTERVAL %s MINUTE), 'active')
             """
             cursor.execute(query, (user_id, pc_id, duration_minutes, payment_method, 
-                                  payment_amount, duration_minutes))
+                                  payment_amount, datetime.now(), datetime.now(), duration_minutes))
             session_id = cursor.lastrowid
             
             # Update PC status
@@ -739,9 +739,9 @@ class Order:
             
             # Create order
             cursor.execute("""
-            INSERT INTO orders (session_id, total_amount)
-            VALUES (%s, %s)
-            """, (session_id, total_amount))
+            INSERT INTO orders (session_id, order_time, total_amount)
+            VALUES (%s, %s, %s)
+            """, (session_id, datetime.now(), total_amount))
             
             order_id = cursor.lastrowid
             
@@ -1002,16 +1002,17 @@ class Order:
             if status == 'delivered':
                 query = """
                 UPDATE orders 
-                SET status = %s, delivery_time = NOW()
+                SET status = %s, delivery_time = %s
                 WHERE id = %s
                 """
+                cursor.execute(query, (status, datetime.now(), self.id))
             else:
                 query = """
                 UPDATE orders 
                 SET status = %s
                 WHERE id = %s
                 """
-            cursor.execute(query, (status, self.id))
+                cursor.execute(query, (status, self.id))
             db.commit()
             self.status = status
             if status == 'delivered':

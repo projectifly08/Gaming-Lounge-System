@@ -463,11 +463,12 @@ class MenuItemCard(QFrame):
             
             # First create the order with appropriate values
             cursor.execute("""
-                INSERT INTO orders (session_id, status, total_amount)
-                VALUES (%s, %s, %s)
+                INSERT INTO orders (session_id, status, order_time, total_amount)
+                VALUES (%s, %s, %s, %s)
             """, (
                 session_id,
                 'pending',
+                datetime.now(),
                 total_amount
             ))
             
