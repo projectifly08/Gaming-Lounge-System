@@ -1799,12 +1799,12 @@ class LauncherMainWindow(QMainWindow):
         if assigned_pc:
             # User has an existing active session with a PC
             # Check if user is trying to login from the correct PC
-            default_pc = int(os.getenv('DEFAULT_PC_NUMBER', 1))
-            if assigned_pc.pc_number != default_pc:
-                self.show_message("Wrong PC", 
-                    f"You are assigned to PC #{assigned_pc.pc_number} but trying to login from PC #{default_pc}. "
-                    "Please use your assigned PC.", QMessageBox.Warning)
-                return
+            # default_pc = int(os.getenv('DEFAULT_PC_NUMBER', 1))
+            # if assigned_pc.pc_number != default_pc:
+            #     self.show_message("Wrong PC", 
+            #         f"You are assigned to PC #{assigned_pc.pc_number} but trying to login from PC #{default_pc}. "
+            #         "Please use your assigned PC.", QMessageBox.Warning)
+            #     return
 
             self.show_message("Login Successful", 
                            f"Welcome back, {user.name}! You are assigned to PC #{assigned_pc.pc_number}.",
