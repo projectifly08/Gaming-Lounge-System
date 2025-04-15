@@ -1,48 +1,68 @@
 @echo off
-echo Installing Gaming Lounge Management System...
 
-:: Create virtual environment
-@REM echo Creating virtual environment...
-@REM python -m venv venv
+REM Call the install.bat script first
+call build.bat
 
-@REM :: Activate virtual environment
-@REM echo Activating virtual environment...
-@REM call venv\Scripts\activate.bat
+echo Building Gaming Lounge System executables...
 
-:: Install requirements
-echo Installing dependencies...
-pip install -r requirements.txt
+REM Find Python executable
+FOR /F "tokens=*" %%g IN ('where python') do (SET PYTHON_PATH=%%g)
+echo Python found at: %PYTHON_PATH%
 
-:: Initialize database
-echo Initializing database...
-python -m src.database.init_db
-if %ERRORLEVEL% NEQ 0 (
-    :: Set up environment variables
-    echo IMPORTANT: You need to set the correct MySQL credentials in the .env file.
-    echo Please edit the .env file with your database connection details.
-    echo.
-    echo Press any key to open the .env file for editing...
-    pause > nul
-    notepad .env
-    echo.
-    echo After editing the .env file, press any key to continue with database initialization...
-    pause > nul
+REM Install PyInstaller using the Python module approach
+echo Installing PyInstaller...
+"%PYTHON_PATH%" -m pip install pyinstaller
 
-    :: Initialize database again
-    python -m src.database.init_db
-    if %ERRORLEVEL% NEQ 0 (
-        echo.
-        echo Database initialization failed. Please check your MySQL credentials in the .env file.
-        echo Make sure your MySQL server is running and the credentials are correct.
-        echo.
-        pause
-        exit /b 1
-    )
+REM Build the Launcher executable directly
+echo.
+echo Building Launcher executable...
+"%PYTHON_PATH%" -m PyInstaller --onefile ^
+  --name=Launcher ^
+  --icon="src/assets/logo1.jpg" ^
+  --add-data "src/assets;src/assets" ^
+  --add-data "src/database/*.sql;src/database" ^
+  --hidden-import=PyQt5.QtCore ^
+  --hidden-import=PyQt5.QtGui ^
+  --hidden-import=PyQt5.QtWidgets ^
+  --hidden-import=mysql.connector ^
+  --hidden-import=bcrypt ^
+  --hidden-import=python-dotenv ^
+  run_launcher.py
+
+REM Build the Admin executable directly
+echo.
+echo Building Admin executable...
+"%PYTHON_PATH%" -m PyInstaller --onefile ^
+  --name=Admin ^
+  --icon="src/assets/logo1.jpg" ^
+  --add-data "src/assets;src/assets" ^
+  --add-data "src/database/*.sql;src/database" ^
+  --hidden-import=PyQt5.QtCore ^
+  --hidden-import=PyQt5.QtGui ^
+  --hidden-import=PyQt5.QtWidgets ^
+  --hidden-import=mysql.connector ^
+  --hidden-import=bcrypt ^
+  --hidden-import=python-dotenv ^
+  run_admin.py
+
+echo.
+if exist "dist\Launcher.exe" (
+    echo Launcher build completed successfully!
+) else (
+    echo Launcher build failed!
 )
 
-python -m update_database
+if exist "dist\Admin.exe" (
+    echo Admin build completed successfully!
+) else (
+    echo Admin build failed!
+)
 
+echo.
 echo Installation complete!
-echo To start the admin panel, run: run_admin.bat
-echo To start the game launcher, run: run_launcher.bat
+echo.
+echo Check the 'dist' directory for the executables.
+echo To start the admin panel, run: Admin.exe
+echo To start the game launcher, run: Launcher.exe
+echo.
 pause 

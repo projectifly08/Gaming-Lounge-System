@@ -24,6 +24,8 @@ from .login import AdminLoginWindow
 from src.utils.helpers import set_background_image
 from src.common import add_close_button
 
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+
 class RoundedImageLabel(QLabel):
     """A QLabel that displays images with rounded corners."""
     def __init__(self, *args, **kwargs):
@@ -210,7 +212,8 @@ class AdminMainWindow(QMainWindow):
         # Add logo image
         logo_label = QLabel()
         logo_label.setFixedSize(70, 70)
-        logo_pixmap = QPixmap("src/assets/logo1.jpg")
+        logo_path = os.path.join(root_dir, 'src', 'assets', 'logo1.jpg')
+        logo_pixmap = QPixmap(logo_path)
         scaled_pixmap = logo_pixmap.scaled(70, 70, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         logo_label.setPixmap(scaled_pixmap)
         logo_label.setAlignment(Qt.AlignCenter)
@@ -264,7 +267,8 @@ class AdminMainWindow(QMainWindow):
         """)
         
         # Load a new refresh icon image
-        new_icon_path = "src/assets/refresh-icon.png"  # Update with the actual path to the new icon
+        refresh_icon_path = os.path.join(root_dir, 'src', 'assets', 'refresh-icon.png')
+        new_icon_path = refresh_icon_path # Update with the actual path to the new icon
         self.refresh_pixmap = QPixmap(new_icon_path)
 
         # Set the new icon on the refresh button

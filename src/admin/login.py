@@ -11,6 +11,7 @@ from src.utils.helpers import set_background_image, check_password, hash_passwor
 from src.database import db
 from src.common import add_close_button
 
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
 
 class RoundedImageLabel(QLabel):
     """A QLabel that displays images with rounded corners."""
@@ -97,7 +98,8 @@ class AdminLoginWindow(QMainWindow):
         # Add logo image
         logo_label = RoundedImageLabel()
         logo_label.setFixedSize(150, 150)
-        logo_pixmap = QPixmap("src/assets/logo.jpg")
+        logo_path = os.path.join(root_dir, 'src', 'assets', 'logo.jpg')
+        logo_pixmap = QPixmap(logo_path)
         logo_label.setPixmap(logo_pixmap)
         logo_label.setAlignment(Qt.AlignCenter)
         logo_label.setStyleSheet("""

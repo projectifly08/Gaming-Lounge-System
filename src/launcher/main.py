@@ -12,6 +12,9 @@ from src.common import add_close_button
 from datetime import datetime, timedelta
 from src.common.ui_components import StyledTable
 
+
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+
 class RoundedImageLabel(QLabel):
     """A QLabel that displays images with rounded corners."""
     def __init__(self, *args, **kwargs):
@@ -203,8 +206,9 @@ class GameCard(QFrame):
             pixmap = QPixmap(image_path)
         else:
             # Use a default game icon
-            pixmap = QPixmap("src/assets/game_icon.png")
-            if not os.path.exists("src/assets/game_icon.png"):
+            game_path = os.path.join(root_dir, 'src', 'assets', 'game_icon.png')
+            pixmap = QPixmap(game_path)
+            if not os.path.exists(game_path):
                 # Create a colored rectangle as fallback
                 pixmap = QPixmap(120, 120)
                 pixmap.fill(QColor("#0078d7"))
@@ -660,7 +664,8 @@ class LauncherMainWindow(QMainWindow):
         # Add logo image
         logo_label = RoundedImageLabel()
         logo_label.setFixedSize(150, 150)
-        logo_pixmap = QPixmap("src/assets/logo.jpg")
+        logo_path = os.path.join(root_dir, 'src', 'assets', 'logo.jpg')
+        logo_pixmap = QPixmap(logo_path)
         logo_label.setPixmap(logo_pixmap)
         logo_label.setAlignment(Qt.AlignCenter)
         logo_label.setStyleSheet("""
@@ -918,7 +923,8 @@ class LauncherMainWindow(QMainWindow):
         # Add logo image
         logo_label = RoundedImageLabel()
         logo_label.setFixedSize(150, 150)
-        logo_pixmap = QPixmap("src/assets/logo.jpg")
+        logo_path = os.path.join(root_dir, 'src', 'assets', 'logo.jpg')
+        logo_pixmap = QPixmap(logo_path)
         logo_label.setPixmap(logo_pixmap)
         logo_label.setAlignment(Qt.AlignCenter)
         logo_label.setStyleSheet("""
